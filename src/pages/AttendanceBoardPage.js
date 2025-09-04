@@ -2,10 +2,9 @@ import React, { useEffect, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { useParams } from "react-router-dom";
-import "../css/AttendanceBoardPage.css";
 
 function AttendanceBoardPage() {
-  const { eventId } = useParams(); // 👈 get eventId from route
+  const { eventId } = useParams();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -17,7 +16,7 @@ function AttendanceBoardPage() {
 
   const slots = ["07AM", "12PM", "01PM", "05PM"];
 
-  // Subscribe to attendance for this event
+  // Subscribe to attendance
   useEffect(() => {
     if (!eventId) return;
 
@@ -25,15 +24,12 @@ function AttendanceBoardPage() {
       collection(db, "events", eventId, "attendance"),
       (snapshot) => {
         let results = [];
-
         snapshot.forEach((doc) => {
           const data = doc.data();
-
           let attended = 0;
           slots.forEach((slot) => {
             if (data[slot]) attended++;
           });
-
           const percentage = Math.round((attended / slots.length) * 100);
 
           results.push({
@@ -46,7 +42,6 @@ function AttendanceBoardPage() {
             percentage,
           });
         });
-
         setStudents(results);
         setLoading(false);
       },
@@ -59,7 +54,7 @@ function AttendanceBoardPage() {
     return () => unsubscribe();
   }, [eventId]);
 
-  // Get sections available for selected year
+  // Available sections
   const availableSections = () => {
     if (filterYear === "all") return [];
     const sections = students
@@ -68,7 +63,7 @@ function AttendanceBoardPage() {
     return Array.from(new Set(sections)).sort();
   };
 
-  // Apply filtering/searching
+  // Filter + search
   let filtered = students
     .filter((s) => {
       const term = searchTerm.toLowerCase();
@@ -99,47 +94,51 @@ function AttendanceBoardPage() {
     }
   });
 
-  // Render table
+  // Table with Tailwind
   const renderTable = (list) => (
-    <table className="leaderboard-table">
-      <thead>
-        <tr>
-          <th>Student ID</th>
-          <th>Last Name</th>
-          <th>First Name</th>
-          <th>Year</th>
-          <th>Section</th>
-          <th>Attended</th>
-          <th>Percentage</th>
-        </tr>
-      </thead>
-      <tbody>
-        {list.map((student) => (
-          <tr
-            key={student.id}
-            className={
-              student.percentage > 75
-                ? "row-green"
-                : student.percentage > 50
-                ? "row-yellow"
-                : student.percentage > 25
-                ? "row-orange"
-                : "row-red"
-            }
-          >
-            <td>{student.id}</td>
-            <td>{student.lastName || "-"}</td>
-            <td>{student.firstName || "-"}</td>
-            <td>{student.year || "-"}</td>
-            <td>{student.section || "-"}</td>
-            <td>
-              {student.attended}/{slots.length}
-            </td>
-            <td>{student.percentage}%</td>
+    <div className="overflow-x-auto rounded-lg shadow">
+      <table className="w-full border-collapse text-sm">
+        <thead className="bg-gray-200 text-gray-700">
+          <tr>
+            <th className="px-4 py-2 text-left">Student ID</th>
+            <th className="px-4 py-2 text-left">Last Name</th>
+            <th className="px-4 py-2 text-left">First Name</th>
+            <th className="px-4 py-2 text-left">Year</th>
+            <th className="px-4 py-2 text-left">Section</th>
+            <th className="px-4 py-2 text-center">Attended</th>
+            <th className="px-4 py-2 text-center">Percentage</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {list.map((student) => (
+            <tr
+              key={student.id}
+              className={`${
+                student.percentage > 75
+                  ? "bg-green-100"
+                  : student.percentage > 50
+                  ? "bg-yellow-100"
+                  : student.percentage > 25
+                  ? "bg-orange-100"
+                  : "bg-red-100"
+              } border-b`}
+            >
+              <td className="px-4 py-2">{student.id}</td>
+              <td className="px-4 py-2">{student.lastName || "-"}</td>
+              <td className="px-4 py-2">{student.firstName || "-"}</td>
+              <td className="px-4 py-2">{student.year || "-"}</td>
+              <td className="px-4 py-2">{student.section || "-"}</td>
+              <td className="px-4 py-2 text-center">
+                {student.attended}/{slots.length}
+              </td>
+              <td className="px-4 py-2 text-center font-semibold">
+                {student.percentage}%
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 
   // Render grouped
@@ -147,8 +146,8 @@ function AttendanceBoardPage() {
     if (groupOption === "year") {
       const years = Array.from(new Set(filtered.map((s) => s.year))).sort();
       return years.map((year) => (
-        <div key={year} className="group-block">
-          <h3 className="group-header">Year {year}</h3>
+        <div key={year} className="mb-8">
+          <h3 className="text-xl font-bold mb-3">Year {year}</h3>
           {renderTable(filtered.filter((s) => s.year === year))}
         </div>
       ));
@@ -161,11 +160,11 @@ function AttendanceBoardPage() {
           new Set(filtered.filter((s) => s.year === year).map((s) => s.section))
         ).sort();
         return (
-          <div key={year} className="group-block">
-            <h3 className="group-header">Year {year}</h3>
+          <div key={year} className="mb-8">
+            <h3 className="text-xl font-bold mb-3">Year {year}</h3>
             {sections.map((section) => (
-              <div key={section} className="subgroup-block">
-                <h4 className="subgroup-header">Section {section}</h4>
+              <div key={section} className="mb-6 pl-4 border-l-4 border-blue-500">
+                <h4 className="text-lg font-semibold mb-2">Section {section}</h4>
                 {renderTable(
                   filtered.filter(
                     (s) => s.year === year && s.section === section
@@ -182,20 +181,23 @@ function AttendanceBoardPage() {
   };
 
   return (
-    <div className="leaderboard-container">
-      <h2 className="leaderboard-title">Attendance Board (Event: {eventId})</h2>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <h2 className="text-3xl font-bold mb-6 text-gray-800">
+        Attendance Board (Event: {eventId})
+      </h2>
 
-      <div className="toolbar">
+      {/* Toolbar */}
+      <div className="flex flex-wrap gap-4 mb-6">
         <input
           type="text"
           placeholder="Search by ID or Name..."
-          className="search-input"
+          className="border border-gray-300 rounded-lg px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
 
         <select
-          className="toolbar-select"
+          className="border border-gray-300 rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           value={sortOption}
           onChange={(e) => setSortOption(e.target.value)}
         >
@@ -206,7 +208,7 @@ function AttendanceBoardPage() {
         </select>
 
         <select
-          className="toolbar-select"
+          className="border border-gray-300 rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           value={filterYear}
           onChange={(e) => {
             setFilterYear(e.target.value);
@@ -222,7 +224,7 @@ function AttendanceBoardPage() {
         </select>
 
         <select
-          className="toolbar-select"
+          className="border border-gray-300 rounded-lg px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           value={filterSection}
           onChange={(e) => setFilterSection(e.target.value)}
           disabled={filterYear === "all" || availableSections().length === 0}
@@ -236,7 +238,11 @@ function AttendanceBoardPage() {
         </select>
       </div>
 
-      {loading ? <p className="loading-text">Loading...</p> : renderGrouped()}
+      {loading ? (
+        <p className="text-gray-500 text-center">Loading...</p>
+      ) : (
+        renderGrouped()
+      )}
     </div>
   );
 }

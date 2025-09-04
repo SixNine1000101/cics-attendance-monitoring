@@ -1,37 +1,13 @@
 import React, { useEffect, useState } from "react";
-import {
-  collection,
-  getDocs,
-  doc,
-  setDoc,
-  getDoc,
-  onSnapshot,
-} from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import { db, auth } from "../firebase";
+import { db } from "../firebase";
 
 function EventsPage() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-
-  // For new event form
-  const [eventName, setEventName] = useState("");
-  const [eventDate, setEventDate] = useState("");
-  const [status, setStatus] = useState("");
-
-  // For listing events
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const slots = ["07AM", "12PM", "01PM", "05PM"];
-
-  // Auth guard (store user state)
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((u) => setUser(u));
-    return () => unsubscribe();
-  }, []);
-
-  // Subscribe to events list
   useEffect(() => {
     const unsubscribe = onSnapshot(
       collection(db, "events"),
@@ -40,7 +16,6 @@ function EventsPage() {
         snapshot.forEach((doc) => {
           list.push({ id: doc.id, ...doc.data() });
         });
-        // sort by date descending
         list.sort((a, b) => (a.date < b.date ? 1 : -1));
         setEvents(list);
         setLoading(false);
@@ -50,116 +25,50 @@ function EventsPage() {
         setLoading(false);
       }
     );
-
     return () => unsubscribe();
   }, []);
 
-  // Create new event
-  const createEvent = async () => {
-    if (!eventName.trim() || !eventDate.trim()) {
-      setStatus("⚠️ Please enter both date and name.");
-      return;
-    }
-
-    const eventId = `${eventDate}_${eventName.replace(/\s+/g, "-").toLowerCase()}`;
-
-    try {
-      setStatus("⏳ Setting up event...");
-
-      // Event metadata
-      await setDoc(doc(db, "events", eventId), {
-        name: eventName,
-        date: eventDate,
-        slots,
-        createdBy: user?.uid || "system",
-        createdAt: new Date(),
-        status: "upcoming",
-      });
-
-      // Add baseline attendance
-      const studentsSnap = await getDocs(collection(db, "students"));
-      let total = 0;
-
-      for (const studentDoc of studentsSnap.docs) {
-        const studentData = studentDoc.data();
-        const studentId = studentDoc.id;
-
-        const attendanceRef = doc(
-          db,
-          "events",
-          eventId,
-          "attendance",
-          studentId
-        );
-
-        const slotData = {};
-        slots.forEach((slot) => {
-          slotData[slot] = false;
-        });
-
-        await setDoc(attendanceRef, {
-          studentId,
-          ...studentData,
-          ...slotData,
-        });
-
-        total++;
-      }
-
-      setStatus(`✅ Event "${eventName}" created with ${total} students.`);
-      setEventName("");
-      setEventDate("");
-    } catch (error) {
-      console.error("Error creating event:", error);
-      setStatus("❌ Failed to create event.");
-    }
-  };
-
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Events</h2>
+    <div className="min-h-screen bg-gray-100 py-8 px-4">
+      <h2 className="text-3xl font-bold mb-8 text-gray-800">Events</h2>
 
-      {/* Admin-only event creation form */}
-      {user && (
-        <div style={{ marginBottom: "20px" }}>
-          <h3>Create New Event</h3>
-          <input
-            type="date"
-            value={eventDate}
-            onChange={(e) => setEventDate(e.target.value)}
-            style={{ marginRight: "10px", padding: "5px" }}
-          />
-          <input
-            type="text"
-            placeholder="Event Name"
-            value={eventName}
-            onChange={(e) => setEventName(e.target.value)}
-            style={{ marginRight: "10px", padding: "5px" }}
-          />
-          <button onClick={createEvent}>Create Event</button>
-          <p>{status}</p>
-        </div>
-      )}
-
-      {/* Event list */}
       {loading ? (
-        <p>Loading events...</p>
+        <p className="text-gray-500 text-center">Loading events...</p>
       ) : events.length === 0 ? (
-        <p>No events yet.</p>
+        <p className="text-gray-500 text-center">No events yet.</p>
       ) : (
-        <ul>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {events.map((event) => (
-            <li key={event.id} style={{ marginBottom: "10px" }}>
-              <strong>{event.name}</strong> ({event.date})  
+            <div
+              key={event.id}
+              className="bg-white rounded-xl shadow-lg hover:shadow-xl transition flex flex-col justify-between p-6"
+            >
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+                  <span className="text-lg font-semibold text-gray-800">{event.name}</span>
+                </div>
+                <div className="text-sm text-gray-500 mb-4">{event.date}</div>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {event.slots?.map((slot) => (
+                    <span
+                      key={slot}
+                      className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-medium"
+                    >
+                      {slot}
+                    </span>
+                  ))}
+                </div>
+              </div>
               <button
-                style={{ marginLeft: "10px" }}
+                className="mt-2 bg-blue-600 text-white rounded px-4 py-2 font-medium hover:bg-blue-700 transition"
                 onClick={() => navigate(`/events/${event.id}/attendance`)}
               >
                 View Attendance
               </button>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );
