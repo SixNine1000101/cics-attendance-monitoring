@@ -8,6 +8,7 @@ import EventsPage from "./pages/EventsPage";
 import AttendanceBoardPage from "./pages/AttendanceBoardPage";
 import ScannerPage from "./pages/ScannerPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
+import StudentsPage from "./pages/StudentsPage";
 
 
 function App() {
@@ -50,14 +51,14 @@ function App() {
                 Admin
               </Link>
             )}
-            {(role === "semi-admin" || role === "admin") && (
+            {/* {(role === "semi-admin" || role === "admin") && (
               <Link
                 to="/scanner"
                 className="hover:bg-gray-700 px-3 py-2 rounded transition"
               >
                 Scanner
               </Link>
-            )}
+            )} */}
             <Link
               to="/events"
               className="hover:bg-gray-700 px-3 py-2 rounded transition"
@@ -91,9 +92,16 @@ function App() {
             <UnauthorizedPage />
           )}
         />
+        <Route path="/students" element={
+            role === "admin" ? (
+              <StudentsPage />
+            ) : (
+              <LoginPage />
+            )
+          } />
         <Route path="/events" element={<EventsPage />} />
         <Route
-          path="/scanner"
+          path="/events/:eventId/scanner"
           element={
             role === "admin" || role === "semi-admin" ? (
               <ScannerPage />
@@ -102,7 +110,7 @@ function App() {
             )
           }
         />
-        <Route path="/attendance" element={<AttendanceBoardPage />} />
+        {/* <Route path="/attendance" element={<AttendanceBoardPage />} /> */}
         <Route
           path="/events/:eventId/attendance"
           element={<AttendanceBoardPage />}

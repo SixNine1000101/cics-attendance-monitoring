@@ -25,7 +25,7 @@ function AdminDashboardPage() {
     navigate("/login");
   };
 
-  // Create new event
+  // create new event
   const createEvent = async () => {
     if (!eventName.trim() || !eventDate.trim()) {
       setStatus("⚠️ Please enter both date and name.");
@@ -44,11 +44,17 @@ function AdminDashboardPage() {
         createdBy: auth.currentUser?.uid || "system",
         createdAt: new Date(),
         status: "upcoming",
+        config: {
+          "allowOverride": false,
+          "forceSlot": null
+        },
       });
 
+      // for denormalized collection for faster fetching
+      // get the students list
       const studentsSnap = await getDocs(collection(db, "students"));
       let total = 0;
-
+      // for each students, add their infos in the attendance collection with their matching id
       for (const studentDoc of studentsSnap.docs) {
         const studentData = studentDoc.data();
         const studentId = studentDoc.id;
@@ -73,7 +79,7 @@ function AdminDashboardPage() {
       setEventName("");
       setEventDate("");
 
-      // Close modal after success
+      // close modal after success
       setTimeout(() => {
         setShowModal(false);
         setStatus("");
@@ -107,17 +113,17 @@ function AdminDashboardPage() {
         >
           <div className="text-gray-500 text-3xl mb-2">🎓</div>
           <h3 className="text-lg font-semibold text-gray-700">Manage Students</h3>
-          <p className="text-sm text-gray-500">Add or remove students</p>
+          <p className="text-sm text-gray-500">Add, edit or remove students</p>
         </button>
 
-        <button
+        {/* <button
           onClick={() => navigate("/scanner")}
           className="bg-white shadow-md rounded-xl p-6 flex flex-col items-start hover:shadow-lg transition"
         >
           <div className="text-gray-500 text-3xl mb-2">📷</div>
           <h3 className="text-lg font-semibold text-gray-700">Open Scanner</h3>
           <p className="text-sm text-gray-500">Scan student QR codes</p>
-        </button>
+        </button> */}
 
         <button
           onClick={handleLogout}

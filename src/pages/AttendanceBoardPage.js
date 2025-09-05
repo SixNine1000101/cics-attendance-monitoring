@@ -14,6 +14,22 @@ function AttendanceBoardPage() {
   const [filterYear, setFilterYear] = useState("all");
   const [filterSection, setFilterSection] = useState("all");
 
+  // For scroll to top button
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300); // Show button after 300px
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const slots = ["07AM", "12PM", "01PM", "05PM"];
 
   // Subscribe to attendance
@@ -113,15 +129,14 @@ function AttendanceBoardPage() {
           {list.map((student) => (
             <tr
               key={student.id}
-              className={`${
-                student.percentage > 75
-                  ? "bg-green-100"
-                  : student.percentage > 50
+              className={`${student.percentage > 75
+                ? "bg-green-100"
+                : student.percentage > 50
                   ? "bg-yellow-100"
                   : student.percentage > 25
-                  ? "bg-orange-100"
-                  : "bg-red-100"
-              } border-b`}
+                    ? "bg-orange-100"
+                    : "bg-red-100"
+                } border-b`}
             >
               <td className="px-4 py-2">{student.id}</td>
               <td className="px-4 py-2">{student.lastName || "-"}</td>
@@ -243,7 +258,18 @@ function AttendanceBoardPage() {
       ) : (
         renderGrouped()
       )}
+
+      {/* Scroll to top button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-blue-700 transition"
+        >
+          ↑ Top
+        </button>
+      )}
     </div>
+
   );
 }
 
