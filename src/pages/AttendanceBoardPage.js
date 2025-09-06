@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useParams } from "react-router-dom";
 
 function AttendanceBoardPage() {
   const { eventId } = useParams();
   const [students, setStudents] = useState([]);
+  const [eventName, setEventName] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // filters and sorting
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOption, setSortOption] = useState("percentageDesc");
   const [groupOption, setGroupOption] = useState("none");
@@ -33,8 +35,13 @@ function AttendanceBoardPage() {
   const slots = ["07AM", "12PM", "01PM", "05PM"];
 
   // Subscribe to attendance
-  useEffect(() => {
+  useEffect(() => async () => {
     if (!eventId) return;
+    const eventRef = doc(db, "events", eventId);
+    const eventSnap = await getDoc(eventRef);
+    if (eventSnap.exists()) {
+      setEventName(eventSnap.data().name || "");
+    }
 
     const unsubscribe = onSnapshot(
       collection(db, "events", eventId, "attendance"),
@@ -110,7 +117,7 @@ function AttendanceBoardPage() {
     }
   });
 
-  // Table with Tailwind
+  // Table
   const renderTable = (list) => (
     <div className="overflow-x-auto rounded-lg shadow">
       <table className="w-full border-collapse text-sm">
@@ -198,7 +205,7 @@ function AttendanceBoardPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <h2 className="text-3xl font-bold mb-6 text-gray-800">
-        Attendance Board (Event: {eventId})
+        Attendance Board (Event: {eventName})
       </h2>
 
       {/* Toolbar */}

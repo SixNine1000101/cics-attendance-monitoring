@@ -108,7 +108,7 @@ function AdminDashboardPage() {
         </button>
 
         <button
-          onClick={() => navigate("/students")}
+          onClick={() => navigate("/admin-dashboard/students")}
           className="bg-white shadow-md rounded-xl p-6 flex flex-col items-start hover:shadow-lg transition"
         >
           <div className="text-gray-500 text-3xl mb-2">🎓</div>

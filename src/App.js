@@ -92,7 +92,7 @@ function App() {
             <UnauthorizedPage />
           )}
         />
-        <Route path="/students" element={
+        <Route path="/admin-dashboard/students" element={
             role === "admin" ? (
               <StudentsPage />
             ) : (

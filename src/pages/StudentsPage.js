@@ -81,11 +81,11 @@ function StudentsPage() {
         }
 
         // If editing, update existing doc; else create new doc with studentId as key
-        await setDoc(doc(db, "students", formData.studentId), {
-            firstName: formData.firstName,
-            lastName: formData.lastName,
+        await setDoc(doc(db, "students", formData.studentId.toUpperCase()), {
+            firstName: formData.firstName.toUpperCase(),
+            lastName: formData.lastName.toUpperCase(),
             year: Number(formData.year),
-            section: formData.section,
+            section: formData.section.toUpperCase(),
         }, { merge: true }); // merge = update existing or create if new
 
         setIsModalOpen(false);

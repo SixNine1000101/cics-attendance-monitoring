@@ -5,16 +5,35 @@ import { db } from "../firebase";
 import { auth } from "../firebase";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import { QrCodeIcon } from "@heroicons/react/24/outline";
 
 function EventsPage() {
   const navigate = useNavigate();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true); const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
+
   // for export
   const [attendance, setAttendance] = useState([]);
+  // selected event for export
+  const [exportEvent, setExportEvent] = useState(null);
+  const [groupOption, setGroupOption] = useState("yearSection");
+  const [filterYear, setFilterYear] = useState("all");
+  const [filterSection, setFilterSection] = useState("all");
+
+  // categorize based on date
+  const categorizeEvent = (eventDate) => {
+    if (!eventDate) return "unknown";
+    const today = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+    if (eventDate === today) return "ongoing";
+    if (eventDate > today) return "upcoming";
+    if (eventDate < today) return "finished";
+    return "unknown";
+  };
 
 
+
+  // Auth listener
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       setUser(user);
@@ -27,13 +46,6 @@ function EventsPage() {
     });
     return () => unsubscribe();
   }, []);
-
-  // inside EventsPage
-
-  const [exportEvent, setExportEvent] = useState(null);
-  const [groupOption, setGroupOption] = useState("yearSection");
-  const [filterYear, setFilterYear] = useState("all");
-  const [filterSection, setFilterSection] = useState("all");
 
   // Available sections based on chosen year
   const availableSections = (students) => {
@@ -75,7 +87,7 @@ function EventsPage() {
     setAttendance(students);
   };
 
-
+  // Export to Excel
   const handleExport = async () => {
     if (!exportEvent) return;
     let students = await fetchAttendance(exportEvent.id);
@@ -96,7 +108,6 @@ function EventsPage() {
 
     years.forEach((year) => {
       // groupedData.push({ Header: `Year ${year}` });
-
       const sections = [
         ...new Set(filtered.filter((s) => s.year === year).map((s) => s.section)),
       ].sort();
@@ -148,14 +159,18 @@ function EventsPage() {
   const [allowOverride, setAllowOverride] = useState(false);
   const [forceSlot, setForceSlot] = useState("");
 
+  // Fetch events
   useEffect(() => {
     const unsubscribe = onSnapshot(
       collection(db, "events"),
       (snapshot) => {
         let list = [];
         snapshot.forEach((doc) => {
-          list.push({ id: doc.id, ...doc.data() });
+          const data = doc.data();
+          const status = categorizeEvent(data.date); // categorize based on date
+          list.push({ id: doc.id, ...data, status });
         });
+
         list.sort((a, b) => (a.date < b.date ? 1 : -1));
         setEvents(list);
         setLoading(false);
@@ -208,7 +223,14 @@ function EventsPage() {
             >
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+                  <span
+                    className={`inline-block w-2 h-2 rounded-full ${event.status === "ongoing"
+                      ? "bg-green-500"
+                      : event.status === "upcoming"
+                        ? "bg-blue-500"
+                        : "bg-gray-500"
+                      }`}
+                  ></span>
                   <span className="text-lg font-semibold text-gray-800">{event.name}</span>
                   {role === "admin" && (
                     <button className="bg-green-600 px-2 py-1 text-white  rounded font-medium ml-auto hover:bg-green-700"
@@ -230,31 +252,43 @@ function EventsPage() {
                 </div>
               </div>
               <div className="flex flex-col gap-2">
-                <button
-                  className="bg-blue-600 text-white rounded px-4 py-2 font-medium hover:bg-blue-700 transition"
-                  onClick={() => navigate(`/events/${event.id}/attendance`)}
-                >
-                  View Attendance
-                </button>
                 <div className="flex gap-4">
+                  {/* View Attendance */}
+                  <button
+                    disabled={!(role === "admin" || role === "semi-admin")}
+                    className={`rounded px-4 py-2 font-medium transition flex-1
+        ${role === "admin" || role === "semi-admin"
+                        ? "bg-blue-600 text-white hover:bg-blue-700"
+                        : "bg-gray-400 text-gray-200 cursor-not-allowed hover:bg-gray-500"
+                      }`}
+                    onClick={() => navigate(`/events/${event.id}/attendance`)}
+                  >
+                    View Attendance
+                  </button>
 
-                  {(role === "admin" || role === "semi-admin") && (
+                  {/* Scan */}
+                  {((role === "admin" || role === "semi-admin") && event.status === "ongoing") && (
                     <button
-                      className={`bg-slate-600 text-white rounded px-4 py-2 font-medium hover:bg-slate-700 transition ${role === "admin" ? "flex-1" : "w-full"
-                        }`}
-
+                       className="bg-slate-600 text-white rounded px-4 py-2 font-medium hover:bg-slate-700 transition-all duration-300 ease-in-out w-32 hover:w-40"
                       onClick={() => navigate(`/events/${event.id}/scanner`)}
                     >
-                      Scan QR Codes
-                    </button>)}
-                  {(role === "admin") && (
-                    <button
-                      className="bg-gray-600 text-white rounded px-4 py-2 font-medium hover:bg-gray-700 transition flex-1"
-                      onClick={() => openConfigModal(event)}
-                    >
-                      Edit Scanning Rules
-                    </button>)}
+                      <div className="flex items-center justify-center">
+                        <QrCodeIcon className="h-6 w-6 mr-2" />
+                        <span>Scan</span>
+                      </div>
+                    </button>
+                  )}
                 </div>
+
+                {/*Edit Scanning Rules (only for admins) */}
+                {(role === "admin") && (
+                  <button
+                    className="bg-gray-600 text-white rounded px-4 py-2 font-medium hover:bg-gray-700 transition"
+                    onClick={() => openConfigModal(event)}
+                  >
+                    Edit Scanning Rules
+                  </button>
+                )}
               </div>
             </div>
           ))}
