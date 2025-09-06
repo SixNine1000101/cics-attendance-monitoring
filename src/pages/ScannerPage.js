@@ -325,7 +325,7 @@ function ScannerPage() {
             </div>
 
             {/* <p className="text-sm text-gray-700 mb-4">{message}</p> */}
-
+            {/*}
             <div className="flex gap-3 mb-4">
                 <button
                     onClick={async () => {
@@ -364,6 +364,7 @@ function ScannerPage() {
                     ⏸ Stop
                 </button>
             </div>
+            */}
         </div>
     );
 }
