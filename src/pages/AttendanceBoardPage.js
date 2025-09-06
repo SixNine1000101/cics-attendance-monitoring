@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useParams } from "react-router-dom";
+import loadingGif from "../assets/gif/loading-fill.gif";
 
 function AttendanceBoardPage() {
   const { eventId } = useParams();
@@ -35,46 +36,63 @@ function AttendanceBoardPage() {
   const slots = ["07AM", "12PM", "01PM", "05PM"];
 
   // Subscribe to attendance
-  useEffect(() => async () => {
+  useEffect(() => {
     if (!eventId) return;
-    const eventRef = doc(db, "events", eventId);
-    const eventSnap = await getDoc(eventRef);
-    if (eventSnap.exists()) {
-      setEventName(eventSnap.data().name || "");
-    }
 
-    const unsubscribe = onSnapshot(
-      collection(db, "events", eventId, "attendance"),
-      (snapshot) => {
-        let results = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          let attended = 0;
-          slots.forEach((slot) => {
-            if (data[slot]) attended++;
-          });
-          const percentage = Math.round((attended / slots.length) * 100);
+    const fetchData = async () => {
+      try {
+        const eventRef = doc(db, "events", eventId);
+        const eventSnap = await getDoc(eventRef);
+        if (eventSnap.exists()) {
+          setEventName(eventSnap.data().name || "");
+        }
 
-          results.push({
-            id: data.studentId,
-            firstName: data.firstName,
-            lastName: data.lastName,
-            year: data.year,
-            section: data.section,
-            attended,
-            percentage,
-          });
-        });
-        setStudents(results);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching attendance:", error);
+        const unsubscribe = onSnapshot(
+          collection(db, "events", eventId, "attendance"),
+          (snapshot) => {
+            let results = [];
+            snapshot.forEach((docSnap) => {
+              const data = docSnap.data();
+              let attended = 0;
+              slots.forEach((slot) => {
+                if (data[slot]) attended++;
+              });
+              const percentage = Math.round((attended / slots.length) * 100);
+
+              results.push({
+                id: data.studentId,
+                firstName: data.firstName,
+                lastName: data.lastName,
+                year: data.year,
+                section: data.section,
+                attended,
+                percentage,
+              });
+            });
+            setStudents(results);
+            setLoading(false);
+          },
+          (error) => {
+            console.error("Error fetching attendance:", error);
+            setLoading(false);
+          }
+        );
+
+        // cleanup
+        return unsubscribe;
+      } catch (err) {
+        console.error("Error loading event:", err);
         setLoading(false);
       }
-    );
+    };
 
-    return () => unsubscribe();
+    const unsubscribePromise = fetchData();
+
+    return () => {
+      unsubscribePromise.then((unsubscribe) => {
+        if (typeof unsubscribe === "function") unsubscribe();
+      });
+    };
   }, [eventId]);
 
   // Available sections
@@ -261,7 +279,16 @@ function AttendanceBoardPage() {
       </div>
 
       {loading ? (
-        <p className="text-gray-500 text-center">Loading...</p>
+        <div className="text-center mt-20">
+          <img
+            className="mx-auto"
+            src={loadingGif}
+            alt="Loading..."
+            width={100}
+            height={50}
+          />
+          <p className="text-gray-500 text-center">Loading...</p>
+        </div>
       ) : (
         renderGrouped()
       )}

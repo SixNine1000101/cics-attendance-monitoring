@@ -344,7 +344,18 @@ function ScannerPage() {
                     </button>
                 </div>
             </div>
-
+            <button
+                disabled={!(role === "admin" || role === "semi-admin")}
+                className={`rounded px-4 py-2 font-medium transition flex-1
+        ${role === "admin" || role === "semi-admin"
+                        ? "bg-blue-600 text-white hover:bg-blue-700"
+                        : "bg-gray-400 text-gray-200 cursor-not-allowed hover:bg-gray-500"
+                    }`}
+                onClick={() => navigate(`/events/${eventId}/attendance`)}
+            >
+                View Attendance
+            </button>
+            
             {/* <p className="text-sm text-gray-700 mb-4">{message}</p> */}
             {/*}
             <div className="flex gap-3 mb-4">

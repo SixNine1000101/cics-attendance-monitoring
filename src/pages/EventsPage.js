@@ -6,6 +6,7 @@ import { auth } from "../firebase";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { QrCodeIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
+import loadingGif from "../assets/gif/loading-fill.gif";
 
 function EventsPage() {
   const navigate = useNavigate();
@@ -210,7 +211,10 @@ function EventsPage() {
       <h2 className="text-3xl font-bold mb-8 text-gray-800">Events</h2>
 
       {loading ? (
-        <p className="text-gray-500 text-center">Loading events...</p>
+        <div className="flex justify-center items-center">
+          <img src={loadingGif} alt="Loading..." className="h-16 w-16" />
+          <p className="text-gray-500 ml-4">Loading events...</p>
+        </div>
       ) : events.length === 0 ? (
         <p className="text-gray-500 text-center">No events yet.</p>
       ) : (

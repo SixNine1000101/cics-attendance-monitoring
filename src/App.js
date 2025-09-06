@@ -1,4 +1,4 @@
-import React, { use, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { auth } from "./firebase";
 import { signOut } from "firebase/auth";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
@@ -70,7 +70,11 @@ function App() {
           {/* Right side: logout */}
           {user && (
             <button
-              onClick={() => signOut(auth)}
+            // to make signOut work properly with navigate 
+              onClick={async () => {
+                await signOut(auth);
+                window.location.href = "/login"; // Redirect to login after logout
+              }}
               className="bg-red-600 hover:bg-red-700 px-3 py-2 rounded transition"
             >
               Logout
@@ -83,17 +87,35 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route
-          path={!user ? "/admin-dashboard" : role === "admin" ? "/admin-dashboard" : "/unauthorized"}
-          element={<AdminDashboardPage />}
+          path="/admin-dashboard"
+          element={!user ? (
+            <LoginPage />
+          ) : role === "admin" ? (
+            <AdminDashboardPage />
+          ) : (
+            <UnauthorizedPage />
+          )}
         />
-        <Route
-          path={!user ? "/admin-dashboard/students" : role === "admin" ? "/admin-dashboard/students" : "/unauthorized"}
-          element={<StudentsPage />}
+        <Route path="/admin-dashboard/students"
+          element={!user ? (
+            <LoginPage />
+          ) : role === "admin" ? (
+            <StudentsPage />
+          ) : (
+            <UnauthorizedPage />
+          )
+          }
         />
         <Route path="/events" element={<EventsPage />} />
         <Route
-          path={!user ? "/events/:eventId/scanner" : "/login"}
-          element={<ScannerPage />}
+          path="/events/:eventId/scanner"
+          element={
+            role === "admin" || role === "semi-admin" ? (
+              <ScannerPage />
+            ) : (
+              <LoginPage />
+            )
+          }
         />
         {/* <Route path="/attendance" element={<AttendanceBoardPage />} /> */}
         <Route
@@ -101,7 +123,7 @@ function App() {
           element={<AttendanceBoardPage />}
         />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
-        <Route path="/" element={<EventsPage/>} />
+        <Route path="/" element={<EventsPage />} />
       </Routes>
     </Router>
   );
