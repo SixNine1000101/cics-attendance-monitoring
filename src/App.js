@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import { auth } from "./firebase";
 import { signOut } from "firebase/auth";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
@@ -83,39 +83,25 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route
-          path="/admin-dashboard"
-          element={!user ? (
-            <LoginPage />
-          ) : role === "admin" ? (
-            <AdminDashboardPage />
-          ) : (
-            <UnauthorizedPage />
-          )}
+          path={!user ? "/admin-dashboard" : role === "admin" ? "/admin-dashboard" : "/unauthorized"}
+          element={<AdminDashboardPage />}
         />
-        <Route path="/admin-dashboard/students" element={
-            role === "admin" ? (
-              <StudentsPage />
-            ) : (
-              <LoginPage />
-            )
-          } />
+        <Route
+          path={!user ? "/admin-dashboard/students" : role === "admin" ? "/admin-dashboard/students" : "/unauthorized"}
+          element={<StudentsPage />}
+        />
         <Route path="/events" element={<EventsPage />} />
         <Route
-          path="/events/:eventId/scanner"
-          element={
-            role === "admin" || role === "semi-admin" ? (
-              <ScannerPage />
-            ) : (
-              <LoginPage />
-            )
-          }
+          path={!user ? "/events/:eventId/scanner" : "/login"}
+          element={<ScannerPage />}
         />
         {/* <Route path="/attendance" element={<AttendanceBoardPage />} /> */}
         <Route
           path="/events/:eventId/attendance"
           element={<AttendanceBoardPage />}
         />
-        <Route path="/" element={<EventsPage />} />
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        <Route path="/" element={<EventsPage/>} />
       </Routes>
     </Router>
   );

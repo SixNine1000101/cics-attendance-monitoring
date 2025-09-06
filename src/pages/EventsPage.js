@@ -5,7 +5,7 @@ import { db } from "../firebase";
 import { auth } from "../firebase";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import { QrCodeIcon } from "@heroicons/react/24/outline";
+import { QrCodeIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 
 function EventsPage() {
   const navigate = useNavigate();
@@ -20,6 +20,11 @@ function EventsPage() {
   const [groupOption, setGroupOption] = useState("yearSection");
   const [filterYear, setFilterYear] = useState("all");
   const [filterSection, setFilterSection] = useState("all");
+
+  // Modal state
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [allowOverride, setAllowOverride] = useState(false);
+  const [forceSlot, setForceSlot] = useState("");
 
   // categorize based on date
   const categorizeEvent = (eventDate) => {
@@ -153,12 +158,6 @@ function EventsPage() {
   };
 
 
-
-  // Modal state
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [allowOverride, setAllowOverride] = useState(false);
-  const [forceSlot, setForceSlot] = useState("");
-
   // Fetch events
   useEffect(() => {
     const unsubscribe = onSnapshot(
@@ -269,7 +268,7 @@ function EventsPage() {
                   {/* Scan */}
                   {((role === "admin" || role === "semi-admin") && event.status === "ongoing") && (
                     <button
-                       className="bg-slate-600 text-white rounded px-4 py-2 font-medium hover:bg-slate-700 transition-all duration-300 ease-in-out w-32 hover:w-40"
+                      className="bg-slate-600 text-white rounded px-4 py-2 font-medium hover:bg-slate-700 transition-all duration-300 ease-in-out w-32 hover:w-40"
                       onClick={() => navigate(`/events/${event.id}/scanner`)}
                     >
                       <div className="flex items-center justify-center">
@@ -283,10 +282,13 @@ function EventsPage() {
                 {/*Edit Scanning Rules (only for admins) */}
                 {(role === "admin") && (
                   <button
-                    className="bg-gray-600 text-white rounded px-4 py-2 font-medium hover:bg-gray-700 transition"
+                    className="bg-gray-600 text-white rounded px-4 py-2 font-medium hover:bg-gray-500 transition"
                     onClick={() => openConfigModal(event)}
                   >
-                    Edit Scanning Rules
+                    <div className="flex items-center justify-center">
+                      <span>Edit Rules</span>
+                      <PencilSquareIcon className="h-5 w-5 ml-4" />
+                    </div>
                   </button>
                 )}
               </div>

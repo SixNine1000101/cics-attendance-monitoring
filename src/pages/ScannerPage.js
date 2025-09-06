@@ -8,10 +8,10 @@ import { useNavigate, useParams } from "react-router-dom";
 
 function ScannerPage() {
     const { eventId } = useParams();
+    const eventDate = eventId ? eventId.split("_")[0] : null;
     const videoRef = useRef(null);
-    const [scanner, setScanner] = useState(null);
+    const [scannerState, setScannerState] = useState("idle"); // idle, scanning, error
     // const [message, setMessage] = useState("");
-    const [isScanning, setIsScanning] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [offlineCount, setOfflineCount] = useState(0);
     const [role, setRole] = useState(null);
@@ -57,9 +57,14 @@ function ScannerPage() {
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(async (user) => {
             if (user) {
-                const token = await user.getIdTokenResult(); 
+                if (new Date().toISOString().split("T")[0] !== eventDate) {
+                    console.log(eventDate, new Date().toISOString().split("T")[0]);
+                    navigate("/unauthorized");
+                }
+                const token = await user.getIdTokenResult();
                 setRole(token.claims.role || null);
-            } else {
+            }
+            else {
                 navigate("/login");
             }
         });
@@ -104,6 +109,7 @@ function ScannerPage() {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 videoRef.current.srcObject = stream;
             } catch (fallbackErr) {
+                setScannerState("error");
                 addNotification("❌ Unable to access camera. Please allow access in your browser.", "error");
                 console.error("No camera available at all:", fallbackErr);
                 // handleError(fallbackErr);
@@ -141,7 +147,7 @@ function ScannerPage() {
     // dedupe by eventId|studentId|slot keeping the first occurrence
     const dedupeQueue = (queue) => {
         const map = new Map(); // key -> record
-        for (const item of queue) { 
+        for (const item of queue) {
             const key = `${item.eventId}|${item.studentId}|${item.slot}`; // unique key
             if (!map.has(key)) map.set(key, item); // keep first occurrence
         }
@@ -172,6 +178,7 @@ function ScannerPage() {
 
         // block if outside window and no override
         if (!slot && !config.allowOverride) {
+            setScannerState("error");
             addNotification("⚠️ Scanning not allowed right now.", "warning");
             return;
         }
@@ -182,6 +189,7 @@ function ScannerPage() {
         }
 
         if (!slot) {
+            setScannerState("error");
             addNotification("⚠️ No active slot to record.", "warning");
             return;
         }
@@ -191,6 +199,7 @@ function ScannerPage() {
             const attendanceSnap = await getDoc(attendanceRef);
             // prevent double-marking
             if (attendanceSnap.exists() && attendanceSnap.data()[slot]) {
+                setScannerState("error");
                 addNotification(`⚠️ ${firstName} ${lastName} (${studentId}) already marked for ${slot}.`, 'warning');
                 return;
             }
@@ -215,7 +224,7 @@ function ScannerPage() {
                 },
                 { merge: true }
             );
-
+            setScannerState("scanning");
             addNotification(`✅ Marked ${firstName} ${lastName} (${studentId}) present for ${slot}`, 'success');
         } catch (error) {
             console.error("Error updating attendance:", error);
@@ -241,7 +250,7 @@ function ScannerPage() {
         if (!result?.data) return;
 
         const rawText = result.data.trim();
-        const parts = rawText.split(","); 
+        const parts = rawText.split(",");
 
         // expect format: "LASTNAME,FIRSTNAME,ID,YEAR"
         const lastName = parts[0]?.trim() || "";
@@ -278,8 +287,20 @@ function ScannerPage() {
             <h2 className="text-2xl font-bold mb-4">QR Scanner</h2>
 
             <div className="w-full max-w-md bg-white shadow-md rounded-lg p-4 mb-4">
-                <video ref={videoRef} className="w-full rounded-md border" />
+                <div className="w-full aspect-square overflow-hidden rounded-md border relative">
+                    <video
+                        ref={videoRef}
+                        className="w-full h-full object-cover"
+                        autoPlay
+                        playsInline
+                    />
+                    {/* Scanner overlay */}
+                    <div className={`absolute inset-0 border-2 rounded-md pointer-events-none
+                        ${scannerState === "scanning" ? "border-green-500" :
+                            scannerState === "error" ? "border-red-500" : "border-gray-500"} `} />
+                </div>
             </div>
+
             {/* offline queue info */}
             <div className="w-full max-w-md bg-white shadow-md rounded-lg p-4 mb-6">
                 <p className="mb-2">
