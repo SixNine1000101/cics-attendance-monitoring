@@ -52,21 +52,12 @@ function ScannerPage() {
         });
     };
 
-    // Modal state + student form fields
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [studentForm, setStudentForm] = useState({
-        studentId: "",
-        firstName: "",
-        lastName: "",
-        section: "",
-        year: "",
-    });
-
     /** Auth guard */
+    // get user role
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(async (user) => {
             if (user) {
-                const token = await user.getIdTokenResult();
+                const token = await user.getIdTokenResult(); 
                 setRole(token.claims.role || null);
             } else {
                 navigate("/login");
@@ -83,10 +74,10 @@ function ScannerPage() {
         const minute = now.getMinutes();
         const totalMinutes = hour * 60 + minute;
 
-        if (totalMinutes >= 6 * 60 && totalMinutes < 8 * 60) return "07AM";
-        if (totalMinutes >= 12 * 60 && totalMinutes < 13 * 60) return "12PM";
-        if (totalMinutes >= 13 * 60 && totalMinutes < 14 * 60) return "01PM";
-        if (totalMinutes >= 17 * 60 && totalMinutes < 18 * 60) return "05PM";
+        if (totalMinutes >= 6 * 60 && totalMinutes < 8 * 60) return "07AM"; // 7AM slot is 6:00 - 8:00
+        if (totalMinutes >= 12 * 60 && totalMinutes < 13 * 60) return "12PM"; // 12PM slot is 12:00 - 13:00
+        if (totalMinutes >= 13 * 60 && totalMinutes < 14 * 60) return "01PM"; // 1PM slot is 13:00 - 14:00
+        if (totalMinutes >= 17 * 60 && totalMinutes < 18 * 60) return "05PM"; // 5PM slot is 17:00 - 18:00
 
         return null; // outside slots
     };
@@ -96,40 +87,39 @@ function ScannerPage() {
     useEffect(() => {
         if (!videoRef.current) return;
 
-        const qrScanner = new QrScanner(videoRef.current, handleScan, {
-            highlightScanRegion: true,
-        });
-        setScanner(qrScanner);
+        const qrScanner = new QrScanner(
+            videoRef.current,
+            (result) => {
+                handleScan(result);
+            },
+            {
+                highlightScanRegion: true,
+                preferredCamera: "environment", // rear first
+            }
+        );
 
-        // Explicitly request permission on load
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then((stream) => {
-                // attach stream to video to trigger browser popup
+        qrScanner.start().catch(async (err) => {
+            console.warn("Rear camera not available, falling back:", err);
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 videoRef.current.srcObject = stream;
-                return qrScanner.start();
-            })
-            .then(() => {
-                setIsScanning(true);
-                // addNotification("📷 Camera started successfully", "success");
-            })
-            .catch((err) => {
-                console.error("Camera access error:", err);
-                addNotification("❌ Camera access denied or unavailable.", "error");
-            });
+            } catch (fallbackErr) {
+                addNotification("❌ Unable to access camera. Please allow access in your browser.", "error");
+                console.error("No camera available at all:", fallbackErr);
+                // handleError(fallbackErr);
+            }
+        });
 
         return () => {
-            try {
-                qrScanner.stop();
-            } catch (err) {
-                console.warn("Error stopping scanner:", err);
-            }
+            qrScanner.stop();
         };
     }, []);
+
 
     // load offline queue count on mount
     useEffect(() => {
         const queue = getOfflineQueue();
-        const deduped = dedupeQueue(queue);
+        const deduped = dedupeQueue(queue); // clean duplicates just in case 
         if (deduped.length !== queue.length) {
             saveOfflineQueue(deduped);
         } else {
@@ -142,6 +132,7 @@ function ScannerPage() {
     const getOfflineQueue = () =>
         JSON.parse(localStorage.getItem("offlineQueue") || "[]");
 
+    // save the queue to localStorage
     const saveOfflineQueue = (queue) => {
         localStorage.setItem("offlineQueue", JSON.stringify(queue));
         setOfflineCount(queue.length);
@@ -149,15 +140,16 @@ function ScannerPage() {
 
     // dedupe by eventId|studentId|slot keeping the first occurrence
     const dedupeQueue = (queue) => {
-        const map = new Map();
-        for (const item of queue) {
-            const key = `${item.eventId}|${item.studentId}|${item.slot}`;
-            if (!map.has(key)) map.set(key, item);
+        const map = new Map(); // key -> record
+        for (const item of queue) { 
+            const key = `${item.eventId}|${item.studentId}|${item.slot}`; // unique key
+            if (!map.has(key)) map.set(key, item); // keep first occurrence
         }
-        return Array.from(map.values());
+        return Array.from(map.values()); //
     };
 
     // returns true if added, false if already exists
+    // to prevent duplicates in the queue
     const enqueueOfflineRecord = (record) => {
         const queue = getOfflineQueue();
         const key = `${record.eventId}|${record.studentId}|${record.slot}`;
@@ -195,9 +187,9 @@ function ScannerPage() {
         }
 
         try {
-            const attendanceRef = doc(db, "events", eventId, "attendance", studentId);
+            const attendanceRef = doc(db, "events", eventId, "attendance", studentId); // doc ref for the student in this event 
             const attendanceSnap = await getDoc(attendanceRef);
-
+            // prevent double-marking
             if (attendanceSnap.exists() && attendanceSnap.data()[slot]) {
                 addNotification(`⚠️ ${firstName} ${lastName} (${studentId}) already marked for ${slot}.`, 'warning');
                 return;
@@ -229,7 +221,7 @@ function ScannerPage() {
             console.error("Error updating attendance:", error);
             addNotification("❌ Failed to update attendance. Saving offline…", "error");
 
-            const record = { eventId, slot, ...studentData, timestamp: Date.now() };
+            const record = { eventId, slot, ...studentData, timestamp: Date.now() }; // add timestamp for reference
             const wasQueued = enqueueOfflineRecord(record);
 
             if (!wasQueued) {
@@ -249,8 +241,9 @@ function ScannerPage() {
         if (!result?.data) return;
 
         const rawText = result.data.trim();
-        const parts = rawText.split(",");
+        const parts = rawText.split(","); 
 
+        // expect format: "LASTNAME,FIRSTNAME,ID,YEAR"
         const lastName = parts[0]?.trim() || "";
         const firstName = parts[1]?.trim() || "";
         const studentId = parts[2] ? parts[2].trim().replace(/\s+/g, "") : null;
