@@ -205,7 +205,7 @@ function ScannerPage() {
             addNotification("⚠️ Scanning not allowed right now.", "warning");
             return;
         }
-        if(!slot){
+        if (!slot) {
             setScannerState("error");
             addNotification("⚠️ Could not determine slot. Please contact admin.", "error");
             return;
@@ -363,18 +363,18 @@ function ScannerPage() {
                         Sync Now
                     </button>
                 </div>
+                <button
+                    disabled={!(role === "admin" || role === "semi-admin")}
+                    className={`rounded px-4 py-2 font-medium transition mt-4 w-full
+                            ${role === "admin" || role === "semi-admin"
+                            ? "bg-blue-600 text-white hover:bg-blue-700"
+                            : "bg-gray-400 text-gray-200 cursor-not-allowed hover:bg-gray-500"
+                        }`}
+                    onClick={() => navigate(`/events/${eventId}/attendance`)}
+                >
+                    View Attendance
+                </button>
             </div>
-            <button
-                disabled={!(role === "admin" || role === "semi-admin")}
-                className={`rounded px-4 py-2 font-medium transition flex-1
-        ${role === "admin" || role === "semi-admin"
-                        ? "bg-blue-600 text-white hover:bg-blue-700"
-                        : "bg-gray-400 text-gray-200 cursor-not-allowed hover:bg-gray-500"
-                    }`}
-                onClick={() => navigate(`/events/${eventId}/attendance`)}
-            >
-                View Attendance
-            </button>
         </div>
     );
 }
