@@ -186,8 +186,8 @@ function EventsPage() {
   // Open modal for event
   const openConfigModal = (event) => {
     setSelectedEvent(event);
-    setAllowOverride(event.allowOverride || false);
-    setForceSlot(event.forceSlot || "");
+    setAllowOverride(event.config.allowOverride || false);
+    setForceSlot(event.config.forceSlot || "");
   };
 
   // Save scanning config

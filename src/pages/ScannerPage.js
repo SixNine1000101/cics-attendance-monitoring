@@ -16,20 +16,36 @@ function ScannerPage() {
     const [offlineCount, setOfflineCount] = useState(0);
     const [role, setRole] = useState(null);
     const [notifications, setNotifications] = useState([]);
-    const [config, setConfig] = useState({ allowOverride: false, forceSlot: null });
+
+    const [config, setConfig] = useState({ forceSlot: null, allowOverride: false });
+    const configRef = useRef(config);
     // const eventId = "2025-09-05_testing"; // TODO: make dynamic later
     const navigate = useNavigate();
 
     // get the event's config
     useEffect(() => {
-        const configRef = doc(db, "events", eventId, "config", "scanning");
-        const unsub = onSnapshot(configRef, (snap) => {
+        const eventRef = doc(db, "events", eventId);
+        console.log("Listening to event config:", eventRef);
+        const unsub = onSnapshot(eventRef, (snap) => {
             if (snap.exists()) {
-                setConfig(snap.data());
+
+                const data = snap.data();
+                if (data.config) {
+                    console.log("Event config updated:", data.config);
+                    setConfig(data.config);
+                }
             }
         });
         return () => unsub();
     }, [eventId]);
+
+    useEffect(() => {
+        if (config) {
+            console.log("Config state updated (live):", config);
+            configRef.current = config; // keep ref updated for access in async functions
+        }
+    }, [config]);
+
 
     // utility to add a notification
     const addNotification = (text, type = "info") => {
@@ -74,7 +90,7 @@ function ScannerPage() {
     // utility: current slot resolver 
     const getCurrentSlot = () => {
         const now = new Date();
-        console.log("Current time:", now.toTimeString());
+        // console.log("Current time:", now.toTimeString());
         const hour = now.getHours();
         const minute = now.getMinutes();
         const totalMinutes = hour * 60 + minute;
@@ -82,7 +98,7 @@ function ScannerPage() {
         if (totalMinutes >= 6 * 60 && totalMinutes < 8 * 60) return "07AM"; // 7AM slot is 6:00 - 8:00
         if (totalMinutes >= 12 * 60 && totalMinutes < 13 * 60) return "12PM"; // 12PM slot is 12:00 - 13:00
         if (totalMinutes >= 13 * 60 && totalMinutes < 14 * 60) return "01PM"; // 1PM slot is 13:00 - 14:00
-        if (totalMinutes >= 17 * 60 && totalMinutes < 18 * 60) return "05PM"; // 5PM slot is 17:00 - 18:00
+        if (totalMinutes >= 16.5 * 60 && totalMinutes < 18 * 60) return "05PM"; // 5PM slot is 16:30 - 18:00
 
         return null; // outside slots
     };
@@ -99,8 +115,10 @@ function ScannerPage() {
             },
             {
                 highlightScanRegion: true,
-                preferredCamera: "environment", // rear first
-            }
+                preferredCamera: "environment",
+            },
+            "/qr-scanner-worker.min.js"
+            // qrScannerWorkerPath // specify the worker path here coz its bugging
         );
 
         qrScanner.start().catch(async (err) => {
@@ -174,23 +192,22 @@ function ScannerPage() {
     // attendance processor
     const processAttendance = async (studentData) => {
         const { studentId, firstName, lastName, section, year } = studentData;
+        const currentConfig = configRef.current;
         let slot = getCurrentSlot();
 
+        // if admin forced a slot -> use it
+        if (currentConfig.forceSlot) {
+            slot = currentConfig.forceSlot;
+        }
         // block if outside window and no override
-        if (!slot && !config.allowOverride) {
+        if (!currentConfig.allowOverride) {
             setScannerState("error");
             addNotification("⚠️ Scanning not allowed right now.", "warning");
             return;
         }
-
-        // if admin forced a slot -> use it
-        if (config.forceSlot) {
-            slot = config.forceSlot;
-        }
-
-        if (!slot) {
+        if(!slot){
             setScannerState("error");
-            addNotification("⚠️ No active slot to record.", "warning");
+            addNotification("⚠️ Could not determine slot. Please contact admin.", "error");
             return;
         }
 
@@ -226,6 +243,9 @@ function ScannerPage() {
             );
             setScannerState("scanning");
             addNotification(`✅ Marked ${firstName} ${lastName} (${studentId}) present for ${slot}`, 'success');
+
+            setIsProcessing(true);
+            setTimeout(() => setIsProcessing(false), 2000);
         } catch (error) {
             console.error("Error updating attendance:", error);
             addNotification("❌ Failed to update attendance. Saving offline…", "error");
@@ -355,48 +375,6 @@ function ScannerPage() {
             >
                 View Attendance
             </button>
-            
-            {/* <p className="text-sm text-gray-700 mb-4">{message}</p> */}
-            {/*}
-            <div className="flex gap-3 mb-4">
-                <button
-                    onClick={async () => {
-                        try {
-                            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                            videoRef.current.srcObject = stream;
-                            await scanner?.start();
-                            setIsScanning(true);
-                            // addNotification("📷 Camera started successfully", "success");
-                        } catch (err) {
-                            console.error("Camera access error:", err);
-                            addNotification("⚠️ Unable to access camera. Please allow access in your browser.", "error");
-                        }
-                    }}
-                    disabled={isScanning}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg disabled:opacity-50"
-                >
-                    ▶ Start
-                </button>
-
-
-
-                <button
-                    onClick={() => {
-                        try {
-                            scanner?.stop();
-                            setIsScanning(false);
-                            addNotification("⏸ Camera stopped", "info");
-                        } catch (err) {
-                            console.warn("Error stopping camera:", err);
-                        }
-                    }}
-                    disabled={!isScanning}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg disabled:opacity-50"
-                >
-                    ⏸ Stop
-                </button>
-            </div>
-            */}
         </div>
     );
 }
