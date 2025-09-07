@@ -1,12 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { collection, getDocs, setDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, setDoc, updateDoc, deleteDoc, doc, query, where, writeBatch } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { useParams, useNavigate } from "react-router-dom";
 
 function StudentsPage() {
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [role, setRole] = useState(null);
+
+    // Navigation
+    const navigate = useNavigate();
+
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split("T")[0]; // e.g., "2025-09-07"
 
     // Search/filter/sort
     const [searchTerm, setSearchTerm] = useState("");
@@ -67,7 +74,7 @@ function StudentsPage() {
     const scrollToTop = () =>
         window.scrollTo({ top: 0, behavior: "smooth" });
 
-    // Save student
+    // Save student (add/edit)
     const handleSave = async () => {
         if (
             !formData.studentId ||
@@ -79,14 +86,50 @@ function StudentsPage() {
             alert("All fields are required.");
             return;
         }
-
-        // If editing, update existing doc; else create new doc with studentId as key
-        await setDoc(doc(db, "students", formData.studentId.toUpperCase()), {
+        // Prepare student data
+        const studentData = {
             firstName: formData.firstName.toUpperCase(),
             lastName: formData.lastName.toUpperCase(),
             year: Number(formData.year),
             section: formData.section.toUpperCase(),
-        }, { merge: true }); // merge = update existing or create if new
+        };
+
+        // 1. Query events that are today or in the future
+        const eventsRef = collection(db, "events");
+        const q = query(eventsRef, where("date", ">=", today));
+        const snapshot = await getDocs(q);
+
+        const batch = writeBatch(db);
+
+        // 3. Update /students/{studentId}
+        batch.set(
+            doc(db, "students", formData.studentId.toUpperCase()),
+            studentData,
+            { merge: true }
+        );
+
+
+        // 4. Loop through matching events and update attendance
+        snapshot.forEach(eventDoc => {
+            const attendanceRef = doc(
+                db,
+                `events/${eventDoc.id}/attendance`,
+                formData.studentId.toUpperCase()
+            );
+
+            batch.set(attendanceRef, studentData, { merge: true });
+        });
+
+        // 5. Commit all writes together
+        await batch.commit();
+
+        // If editing, update existing doc; else create new doc with studentId as key
+        // await setDoc(doc(db, "students", formData.studentId.toUpperCase()), {
+        //     firstName: formData.firstName.toUpperCase(),
+        //     lastName: formData.lastName.toUpperCase(),
+        //     year: Number(formData.year),
+        //     section: formData.section.toUpperCase(),
+        // }, { merge: true }); // merge = update existing or create if new
 
         setIsModalOpen(false);
         setEditingStudent(null);
@@ -99,13 +142,13 @@ function StudentsPage() {
         });
         fetchStudents();
     };
-    // Delete student
+    // Delete student modal
     const openDeleteModal = (student) => {
         setDeleteStudent(student);
     };
 
 
-
+    // Edit student modal 
     const openEditModal = (student) => {
         setEditingStudent(student);
         setFormData({
@@ -175,7 +218,9 @@ function StudentsPage() {
                     </tr>
                 </thead>
                 <tbody>
-                    {list.map((s) => (
+                    {list.length === 0 ? (
+                        <tr><td colSpan="6" className="text-center py-4 text-gray-500">No students found</td></tr>
+                    ) : list.map((s) => (
                         <tr key={s.studentId} className="border-t">
                             <td className="px-4 py-2">{s.studentId}</td>
                             <td className="px-4 py-2">{s.lastName}</td>
@@ -196,8 +241,8 @@ function StudentsPage() {
                                     Delete
                                 </button>
                             </td>
-                        </tr>
-                    ))}
+                        </tr>)
+                    )}
                 </tbody>
             </table>
         </div>
@@ -216,10 +261,10 @@ function StudentsPage() {
         }
 
         if (groupOption === "yearSection") {
-            const years = Array.from(new Set(filtered.map((s) => s.year))).sort();
+            const years = Array.from(new Set(filtered.map((s) => s.year))).sort(); // [1,2,3,4]
             return years.map((year) => {
                 const sections = Array.from(
-                    new Set(filtered.filter((s) => s.year === year).map((s) => s.section))
+                    new Set(filtered.filter((s) => s.year === year).map((s) => s.section)) // ['A','B','C']
                 ).sort();
                 return (
                     <div key={year} className="mb-8">
@@ -247,13 +292,12 @@ function StudentsPage() {
         return renderTable(filtered);
     };
 
-    if (role !== "admin") {
-        return (
-            <p className="text-center text-gray-600 mt-10">
-                Unauthorized – Admins only
-            </p>
-        );
-    }
+    useEffect(() => {
+        if (role && role !== "admin") {
+            navigate("/unauthorized");
+        }
+    }, [role, navigate]);
+
 
     return (
         <div className="min-h-screen bg-gray-50 p-6">
@@ -462,7 +506,7 @@ function StudentsPage() {
                             </button>
                             <button
                                 onClick={async () => {
-                                    await deleteDoc(doc(db, "students", deleteStudent.id));
+                                    await deleteDoc(doc(db, "students", deleteStudent.studentId));
                                     setDeleteStudent(null);
                                     fetchStudents();
                                 }}
