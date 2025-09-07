@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, db } from "../firebase";
-import { collection, getDocs, doc, setDoc } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, writeBatch } from "firebase/firestore";
 
 function AdminDashboardPage() {
   const navigate = useNavigate();
@@ -32,10 +32,10 @@ function AdminDashboardPage() {
       return;
     }
 
-    const eventId = `${eventDate}_${eventName.replace(/\s+/g, "-").toLowerCase()}`;
+    const eventId = `${eventDate}_${eventName.replace(/\s+/g, "-").toLowerCase()}`; // e.g., "2023-09-01_orientation"
 
     try {
-      setStatus("⏳ Setting up event...");
+      setStatus("Setting up event...");
 
       await setDoc(doc(db, "events", eventId), {
         name: eventName,
@@ -43,7 +43,6 @@ function AdminDashboardPage() {
         slots,
         createdBy: auth.currentUser?.uid || "system",
         createdAt: new Date(),
-        status: "upcoming",
         config: {
           "allowOverride": false,
           "forceSlot": null
@@ -52,8 +51,11 @@ function AdminDashboardPage() {
 
       // for denormalized collection for faster fetching
       // get the students list
+      // for denormalized collection for faster fetching
       const studentsSnap = await getDocs(collection(db, "students"));
       let total = 0;
+      let batch = writeBatch(db);
+      let batchCount = 0;
       // for each students, add their infos in the attendance collection with their matching id
       for (const studentDoc of studentsSnap.docs) {
         const studentData = studentDoc.data();
@@ -66,13 +68,26 @@ function AdminDashboardPage() {
           slotData[slot] = false;
         });
 
-        await setDoc(attendanceRef, {
+        batch.set(attendanceRef, {
           studentId,
           ...studentData,
           ...slotData,
         });
 
         total++;
+        batchCount++;
+
+        // Firestore limits batch writes to 500
+        if (batchCount === 500) {
+          await batch.commit();
+          batch = writeBatch(db);
+          batchCount = 0;
+        }
+      }
+
+      // Commit any remaining students
+      if (batchCount > 0) {
+        await batch.commit();
       }
 
       setStatus(`✅ Event "${eventName}" created with ${total} students.`);
@@ -159,7 +174,13 @@ function AdminDashboardPage() {
             >
               Create Event
             </button>
-            {status && <p className="mt-3 text-sm text-gray-600">{status}</p>}
+
+            <div className="pt-4 flex items-center gap-2">
+              {status.startsWith("Setting up event...") && (
+                  <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+              )}
+              {status && <span className="text-sm text-gray-600">{status}</span>}
+            </div>
 
             <button
               onClick={() => setShowModal(false)}
