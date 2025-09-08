@@ -7,6 +7,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { QrCodeIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 import loadingGif from "../assets/gif/loading-fill.gif";
+import { Tooltip } from "react-tooltip";
 const { DateTime } = require('luxon');
 
 
@@ -28,22 +29,23 @@ function EventsPage() {
   // Modal state
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [allowOverride, setAllowOverride] = useState(false);
+  const [allowViewing, setAllowViewing] = useState(false)
   const [forceSlot, setForceSlot] = useState("");
+
+  
 
   // categorize based on date
   const categorizeEvent = (eventDate) => {
     if (!eventDate) return "unknown";
     const today = DateTime.now().setZone('Asia/Manila').toISODate(); // YYYY-MM-DD
-    console.log(today); 
+    // console.log(today); 
 
-    console.log(today.toLocaleString('en-PH', { timeZone: 'Asia/Manila' }));
+    // console.log(today.toLocaleString('en-PH', { timeZone: 'Asia/Manila' }));
     if (eventDate === today) return "ongoing";
     if (eventDate > today) return "upcoming";
     if (eventDate < today) return "finished";
     return "unknown";
   };
-
-
 
   // Auth listener
   useEffect(() => {
@@ -193,6 +195,7 @@ function EventsPage() {
   const openConfigModal = (event) => {
     setSelectedEvent(event);
     setAllowOverride(event.config.allowOverride || false);
+    setAllowViewing(event.config.allowViewing || false)
     setForceSlot(event.config.forceSlot || "");
   };
 
@@ -203,7 +206,8 @@ function EventsPage() {
       doc(db, "events", selectedEvent.id), {
       config: {
         "allowOverride": allowOverride,
-        "forceSlot": forceSlot || null
+        "forceSlot": forceSlot || null,
+        "allowViewing": allowViewing,
       },
     },
       // { allowOverride, forceSlot: forceSlot || null },
@@ -242,7 +246,7 @@ function EventsPage() {
                   ></span>
                   <span className="text-lg font-semibold text-gray-800">{event.name}</span>
                   {role === "admin" && (
-                    <button className="bg-green-600 px-2 py-1 text-white  rounded font-medium ml-auto hover:bg-green-700"
+                    <button data-tooltip-id="export-btn" data-tooltip-content="Export to Excel" className="bg-green-600 px-2 py-1 text-white  rounded font-medium ml-auto hover:bg-green-700"
                       onClick={() => openExportModal(event)}
                     >export</button>
 
@@ -264,9 +268,11 @@ function EventsPage() {
                 <div className="flex gap-4">
                   {/* View Attendance */}
                   <button
-                    disabled={!(role === "admin" || role === "semi-admin")}
+                    disabled={role === "admin" || role === "semi-admin" && event.config.allowViewing ? false : true}
+                    data-tooltip-id="view-attendance-btn" 
+                    data-tooltip-content={role === "admin" || role === "semi-admin" && event.config.allowViewing ? "" : "Only admins can view attendance right now"}
                     className={`rounded px-4 py-2 font-medium transition flex-1
-        ${role === "admin" || role === "semi-admin"
+                        ${role === "admin" || role === "semi-admin" && event.config.allowViewing 
                         ? "bg-blue-600 text-white hover:bg-blue-700"
                         : "bg-gray-400 text-gray-200 cursor-not-allowed hover:bg-gray-500"
                       }`}
@@ -278,6 +284,7 @@ function EventsPage() {
                   {/* Scan */}
                   {((role === "admin" || role === "semi-admin") && event.status === "ongoing") && (
                     <button
+                      data-tooltip-id="scan-btn" data-tooltip-content="Go to Scanner"
                       className="bg-slate-600 text-white rounded px-4 py-2 font-medium hover:bg-slate-700 transition-all duration-300 ease-in-out w-32 hover:w-40"
                       onClick={() => navigate(`/events/${event.id}/scanner`)}
                     >
@@ -292,6 +299,7 @@ function EventsPage() {
                 {/*Edit Scanning Rules (only for admins) */}
                 {(role === "admin") && (
                   <button
+                    data-tooltip-id="edit-rules-btn" data-tooltip-content="Edit Scanning Rules"
                     className="bg-gray-600 text-white rounded px-4 py-2 font-medium hover:bg-gray-500 transition"
                     onClick={() => openConfigModal(event)}
                   >
@@ -312,8 +320,16 @@ function EventsPage() {
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 relative">
             <h3 className="text-xl font-semibold mb-4">
-              Scanning Rules for {selectedEvent.name}
+              Event name: {selectedEvent.name}
             </h3>
+            <label className="flex items-center gap-2 mb-3">
+              <input
+                type="checkbox"
+                checked={allowViewing}
+                onChange={(e) => setAllowViewing(e.target.checked)}
+              />
+              Allow viewing
+            </label>
 
             <label className="flex items-center gap-2 mb-3">
               <input
@@ -421,6 +437,10 @@ function EventsPage() {
         </div>
       )}
 
+    <Tooltip id="export-btn" place="top" />
+    <Tooltip id="view-attendance-btn" place="bottom" />
+    <Tooltip id="scan-btn" place="bottom" />
+    {/* <Tooltip id="edit-rules-btn" place="bottom" /> */}
     </div>
   );
 }

@@ -1,24 +1,50 @@
 import React, { useEffect, useState } from "react";
 import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase";
+import { auth, db } from "../firebase";
 import { useParams } from "react-router-dom";
 import loadingGif from "../assets/gif/loading-fill.gif";
+import { Tooltip } from 'react-tooltip';
+import { useNavigate } from "react-router-dom";
 
 function AttendanceBoardPage() {
   const { eventId } = useParams();
   const [students, setStudents] = useState([]);
   const [eventName, setEventName] = useState("");
+  const [eventConfig, setEventConfig] = useState([])
+
+  const [role, setRole] = useState("");
+  const [loadingRole, setLoadingRole] = useState(true); // new
+  // state to hold user role
+
+  // for navigation
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
 
   // filters and sorting
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortOption, setSortOption] = useState("nameAsc");
+  const [sortOption, setSortOption] = useState("percentageDesc");
   const [groupOption, setGroupOption] = useState("none");
   const [filterYear, setFilterYear] = useState("all");
   const [filterSection, setFilterSection] = useState("all");
 
   // For scroll to top button
   const [showScrollTop, setShowScrollTop] = useState(false);
+
+  /** Auth guard */
+  // get user role
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        const token = await user.getIdTokenResult();
+        setRole(token.claims.role || "");
+      } else {
+        setRole(""); // no role if logged out
+      }
+      setLoadingRole(false); // ✅ finished checking role
+    });
+    return () => unsubscribe();
+  }, []);
+
 
   useEffect(() => {
     const handleScroll = () => {
@@ -37,14 +63,26 @@ function AttendanceBoardPage() {
 
   // Subscribe to attendance
   useEffect(() => {
-    if (!eventId) return;
+    if (!eventId || !role) return; // wait until role known
 
     const fetchData = async () => {
       try {
         const eventRef = doc(db, "events", eventId);
         const eventSnap = await getDoc(eventRef);
-        if (eventSnap.exists()) {
-          setEventName(eventSnap.data().name || "");
+
+        if (!eventSnap.exists()) {
+          navigate("/not-found");
+          return;
+        }
+
+        const config = eventSnap.data().config || {};
+        setEventName(eventSnap.data().name || "");
+        setEventConfig(config);
+
+        // ✅ check role before subscribing
+        if (!config.allowViewing && role !== "admin") {
+          navigate("/unauthorized");
+          return;
         }
 
         const unsubscribe = onSnapshot(
@@ -78,7 +116,6 @@ function AttendanceBoardPage() {
           }
         );
 
-        // cleanup
         return unsubscribe;
       } catch (err) {
         console.error("Error loading event:", err);
@@ -93,7 +130,7 @@ function AttendanceBoardPage() {
         if (typeof unsubscribe === "function") unsubscribe();
       });
     };
-  }, [eventId]);
+  }, [eventId, role, navigate]);
 
   // Available sections
   const availableSections = () => {
@@ -109,7 +146,7 @@ function AttendanceBoardPage() {
     .filter((s) => {
       const term = (searchTerm || "").toLowerCase();
       return (
-        (s.id|| "").toLowerCase().includes(term) ||
+        (s.id || "").toLowerCase().includes(term) ||
         (s.firstName && (s.firstName || "").toLowerCase().includes(term)) ||
         (s.lastName && (s.lastName || "").toLowerCase().includes(term))
       );
@@ -123,16 +160,16 @@ function AttendanceBoardPage() {
   // Sorting
   filtered.sort((a, b) => {
     switch (sortOption) {
-      case "nameAsc":
-        return a.lastName.localeCompare(b.lastName); 
-      case "nameDesc":
-        return b.lastName.localeCompare(a.lastName);
       case "percentageAsc":
         return a.percentage - b.percentage;
       case "percentageDesc":
         return b.percentage - a.percentage;
-      default:
+      case "nameAsc":
         return a.lastName.localeCompare(b.lastName);
+      case "nameDesc":
+        return b.lastName.localeCompare(a.lastName);
+      default:
+        return b.percentage - a.percentage;
     }
   });
 
@@ -242,10 +279,10 @@ function AttendanceBoardPage() {
           value={sortOption}
           onChange={(e) => setSortOption(e.target.value)}
         >
-          <option value="nameAsc">Sort: Last Name A–Z</option>
-          <option value="nameDesc">Sort: Last Name Z–A</option>
           <option value="percentageDesc">Sort: Percentage ↓</option>
           <option value="percentageAsc">Sort: Percentage ↑</option>
+          <option value="nameAsc">Sort: Last Name A–Z</option>
+          <option value="nameDesc">Sort: Last Name Z–A</option>
         </select>
 
         <select
