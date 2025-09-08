@@ -3,7 +3,7 @@ import QrScanner from "qr-scanner";
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { useNavigate, useParams } from "react-router-dom";
-
+import { DateTime } from "luxon";
 
 
 function ScannerPage() {
@@ -73,8 +73,8 @@ function ScannerPage() {
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(async (user) => {
             if (user) {
-                if (new Date().toISOString().split("T")[0] !== eventDate) {
-                    console.log(eventDate, new Date().toISOString().split("T")[0]);
+                if (DateTime.now().setZone('Asia/Manila').toISODate() !== eventDate) {
+                    console.log(eventDate, DateTime.now().setZone('Asia/Manila').toISODate());
                     navigate("/unauthorized");
                 }
                 const token = await user.getIdTokenResult();

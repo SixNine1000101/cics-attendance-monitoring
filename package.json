@@ -11,6 +11,7 @@
     "@yudiel/react-qr-scanner": "^2.3.1",
     "file-saver": "^2.0.5",
     "firebase": "^12.2.1",
+    "luxon": "^3.7.2",
     "qr-scanner": "^1.4.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

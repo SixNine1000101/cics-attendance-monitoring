@@ -7,11 +7,14 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { QrCodeIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 import loadingGif from "../assets/gif/loading-fill.gif";
+const { DateTime } = require('luxon');
+
 
 function EventsPage() {
   const navigate = useNavigate();
   const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true); const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true); 
+  const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
 
   // for export
@@ -30,7 +33,10 @@ function EventsPage() {
   // categorize based on date
   const categorizeEvent = (eventDate) => {
     if (!eventDate) return "unknown";
-    const today = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+    const today = DateTime.now().setZone('Asia/Manila').toISODate(); // YYYY-MM-DD
+    console.log(today); 
+
+    console.log(today.toLocaleString('en-PH', { timeZone: 'Asia/Manila' }));
     if (eventDate === today) return "ongoing";
     if (eventDate > today) return "upcoming";
     if (eventDate < today) return "finished";

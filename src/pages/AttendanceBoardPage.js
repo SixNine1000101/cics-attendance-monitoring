@@ -12,7 +12,7 @@ function AttendanceBoardPage() {
 
   // filters and sorting
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortOption, setSortOption] = useState("percentageDesc");
+  const [sortOption, setSortOption] = useState("nameAsc");
   const [groupOption, setGroupOption] = useState("none");
   const [filterYear, setFilterYear] = useState("all");
   const [filterSection, setFilterSection] = useState("all");
@@ -107,11 +107,11 @@ function AttendanceBoardPage() {
   // Filter + search
   let filtered = students
     .filter((s) => {
-      const term = searchTerm.toLowerCase();
+      const term = (searchTerm || "").toLowerCase();
       return (
-        s.id.toLowerCase().includes(term) ||
-        (s.firstName && s.firstName.toLowerCase().includes(term)) ||
-        (s.lastName && s.lastName.toLowerCase().includes(term))
+        (s.id|| "").toLowerCase().includes(term) ||
+        (s.firstName && (s.firstName || "").toLowerCase().includes(term)) ||
+        (s.lastName && (s.lastName || "").toLowerCase().includes(term))
       );
     })
     .filter((s) => {
@@ -124,14 +124,15 @@ function AttendanceBoardPage() {
   filtered.sort((a, b) => {
     switch (sortOption) {
       case "nameAsc":
-        return a.lastName.localeCompare(b.lastName);
+        return a.lastName.localeCompare(b.lastName); 
       case "nameDesc":
         return b.lastName.localeCompare(a.lastName);
       case "percentageAsc":
         return a.percentage - b.percentage;
       case "percentageDesc":
-      default:
         return b.percentage - a.percentage;
+      default:
+        return a.lastName.localeCompare(b.lastName);
     }
   });
 
@@ -241,10 +242,10 @@ function AttendanceBoardPage() {
           value={sortOption}
           onChange={(e) => setSortOption(e.target.value)}
         >
-          <option value="percentageDesc">Sort: Percentage ↓</option>
-          <option value="percentageAsc">Sort: Percentage ↑</option>
           <option value="nameAsc">Sort: Last Name A–Z</option>
           <option value="nameDesc">Sort: Last Name Z–A</option>
+          <option value="percentageDesc">Sort: Percentage ↓</option>
+          <option value="percentageAsc">Sort: Percentage ↑</option>
         </select>
 
         <select
