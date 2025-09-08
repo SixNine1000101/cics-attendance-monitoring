@@ -14,7 +14,7 @@ const { DateTime } = require('luxon');
 function EventsPage() {
   const navigate = useNavigate();
   const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
 
@@ -32,7 +32,7 @@ function EventsPage() {
   const [allowViewing, setAllowViewing] = useState(false)
   const [forceSlot, setForceSlot] = useState("");
 
-  
+
 
   // categorize based on date
   const categorizeEvent = (eventDate) => {
@@ -269,10 +269,10 @@ function EventsPage() {
                   {/* View Attendance */}
                   <button
                     disabled={role === "admin" || role === "semi-admin" && event.config.allowViewing ? false : true}
-                    data-tooltip-id="view-attendance-btn" 
+                    data-tooltip-id="view-attendance-btn"
                     data-tooltip-content={role === "admin" || role === "semi-admin" && event.config.allowViewing ? "" : "Only admins can view attendance right now"}
                     className={`rounded px-4 py-2 font-medium transition flex-1
-                        ${role === "admin" || role === "semi-admin" && event.config.allowViewing 
+                        ${role === "admin" || role === "semi-admin" && event.config.allowViewing
                         ? "bg-blue-600 text-white hover:bg-blue-700"
                         : "bg-gray-400 text-gray-200 cursor-not-allowed hover:bg-gray-500"
                       }`}
@@ -322,21 +322,40 @@ function EventsPage() {
             <h3 className="text-xl font-semibold mb-4">
               Event name: {selectedEvent.name}
             </h3>
-            <label className="flex items-center gap-2 mb-3">
+
+            <label className="flex items-left gap-2 mb-3 border-t pt-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={allowViewing}
                 onChange={(e) => setAllowViewing(e.target.checked)}
+                className="sr-only peer"
               />
+              <div class="relative w-11 h-6 bg-gray-200 
+              rounded-full peer peer-focus:ring-4
+              dark:bg-gray-500 peer-checked:after:translate-x-full 
+              rtl:peer-checked:after:-translate-x-full  after:content-[''] 
+              after:absolute after:top-0.5 after:start-[2px] after:bg-white
+              after:rounded-full after:h-5 
+              after:w-5 after:transition-all
+              peer-checked:bg-blue-600 dark:peer-checked:bg-blue-600"></div>
               Allow viewing
             </label>
 
-            <label className="flex items-center gap-2 mb-3">
+            <label className="flex items-left gap-2 mb-3 border-t pt-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={allowOverride}
                 onChange={(e) => setAllowOverride(e.target.checked)}
+                className="sr-only peer"
               />
+              <div class="relative w-11 h-6 bg-gray-200 
+              rounded-full peer peer-focus:ring-4
+              dark:bg-gray-500 peer-checked:after:translate-x-full 
+              rtl:peer-checked:after:-translate-x-full  after:content-[''] 
+              after:absolute after:top-0.5 after:start-[2px] after:bg-white
+              after:rounded-full after:h-5 
+              after:w-5 after:transition-all
+              peer-checked:bg-blue-600 dark:peer-checked:bg-blue-600"></div>
               Allow scanning outside time slots
             </label>
 
@@ -345,7 +364,7 @@ function EventsPage() {
               <select
                 value={forceSlot}
                 onChange={(e) => setForceSlot(e.target.value)}
-                className="border rounded px-2 py-1 ml-2"
+                className="border rounded px-2 py-1 ml-2 cursor-pointer"
               >
                 <option value="">-- No Forced Slot --</option>
                 <option value="07AM">07AM</option>
@@ -437,10 +456,10 @@ function EventsPage() {
         </div>
       )}
 
-    <Tooltip id="export-btn" place="top" />
-    <Tooltip id="view-attendance-btn" place="bottom" />
-    <Tooltip id="scan-btn" place="bottom" />
-    {/* <Tooltip id="edit-rules-btn" place="bottom" /> */}
+      <Tooltip id="export-btn" place="top" />
+      <Tooltip id="view-attendance-btn" place="bottom" />
+      <Tooltip id="scan-btn" place="bottom" />
+      {/* <Tooltip id="edit-rules-btn" place="bottom" /> */}
     </div>
   );
 }

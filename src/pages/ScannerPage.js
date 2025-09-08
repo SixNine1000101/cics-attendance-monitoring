@@ -13,8 +13,10 @@ function ScannerPage() {
     const [scannerState, setScannerState] = useState("idle"); // idle, scanning, error
     // const [message, setMessage] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
+    const lastStudentScanRef = useRef({ id: "", time: 0 }); // to track last scanned student and time
     const [offlineCount, setOfflineCount] = useState(0);
     const [role, setRole] = useState(null);
+
     const [notifications, setNotifications] = useState([]);
 
     const [config, setConfig] = useState({ forceSlot: null, allowOverride: false });
@@ -194,6 +196,7 @@ function ScannerPage() {
         const { studentId, firstName, lastName, section, year } = studentData;
         const currentConfig = configRef.current;
         let slot = getCurrentSlot();
+        const now = Date.now();
 
         // if admin forced a slot -> use it
         if (currentConfig.forceSlot) {
@@ -210,6 +213,16 @@ function ScannerPage() {
             addNotification("⚠️ Could not determine slot. Please contact admin.", "error");
             return;
         }
+        console.log("1. Ignoring duplicate scan for", studentId);
+        console.log(lastStudentScanRef.current);
+        // Ignore repeat scans of the same student within 4 seconds
+        if (lastStudentScanRef.current.id === studentId &&
+            now - lastStudentScanRef.current.time < 4000) {
+            console.log("Ignoring duplicate scan for", studentId);
+            console.log(lastStudentScanRef.current);
+            return;
+        }
+        lastStudentScanRef.current = { id: studentId, time: now };
 
         try {
             const attendanceRef = doc(db, "events", eventId, "attendance", studentId); // doc ref for the student in this event 
@@ -245,7 +258,7 @@ function ScannerPage() {
             addNotification(`✅ Marked ${firstName} ${lastName} (${studentId}) present for ${slot}`, 'success');
 
             setIsProcessing(true);
-            setTimeout(() => setIsProcessing(false), 2000);
+            setTimeout(() => setIsProcessing(false), 4000);
         } catch (error) {
             console.error("Error updating attendance:", error);
             addNotification("❌ Failed to update attendance. Saving offline…", "error");
@@ -266,7 +279,7 @@ function ScannerPage() {
         // prevent overlapping processing
         if (isProcessing) return;
         setIsProcessing(true);
-        setTimeout(() => setIsProcessing(false), 2000);
+        setTimeout(() => setIsProcessing(false), 4000);
         if (!result?.data) return;
 
         const rawText = result.data.trim();
