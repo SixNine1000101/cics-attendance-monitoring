@@ -13,6 +13,7 @@ function AdminDashboardPage() {
 
   const slots = ["07AM", "12PM", "01PM", "05PM"];
 
+  // check if user is logged in
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (!user) navigate("/login");

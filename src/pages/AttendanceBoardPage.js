@@ -98,7 +98,7 @@ function AttendanceBoardPage() {
               const percentage = Math.round((attended / slots.length) * 100);
 
               results.push({
-                id: data.studentId,
+                id: docSnap.id,
                 firstName: data.firstName,
                 lastName: data.lastName,
                 year: data.year,

@@ -82,7 +82,7 @@ function EventsPage() {
       });
       const percentage = Math.round((attended / 4) * 100);
       results.push({
-        id: data.studentId,
+        id: doc.id,
         firstName: data.firstName,
         lastName: data.lastName,
         year: data.year,
@@ -458,7 +458,7 @@ function EventsPage() {
 
       <Tooltip id="export-btn" place="top" />
       <Tooltip id="view-attendance-btn" place="bottom" />
-      <Tooltip id="scan-btn" place="bottom" />
+      <Tooltip id="scan-btn" place={role === "admin"?"top":"bottom"} />
       {/* <Tooltip id="edit-rules-btn" place="bottom" /> */}
     </div>
   );

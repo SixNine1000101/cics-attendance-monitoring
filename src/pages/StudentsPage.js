@@ -147,6 +147,24 @@ function StudentsPage() {
         setDeleteStudent(student);
     };
 
+    async function deleteStudentAndAttendance(studentId) {
+        // 1. Delete from students collection
+        await deleteDoc(doc(db, "students", studentId));
+
+        // 2. Find ongoing & upcoming events
+        const now = new Date().toISOString().split("T")[0];;
+        const eventsRef = collection(db, "events");
+        const q = query(eventsRef, where("date", ">=", now)); // only events today or later
+        const eventsSnapshot = await getDocs(q);
+
+        // 3. Remove attendance record for this student in each event
+        for (const eventDoc of eventsSnapshot.docs) {
+            const attendanceRef = doc(db, "events", eventDoc.id, "attendance", studentId);
+            await deleteDoc(attendanceRef);
+        }
+        setDeleteStudent(null);
+    }
+
 
     // Edit student modal 
     const openEditModal = (student) => {
@@ -505,8 +523,8 @@ function StudentsPage() {
                                 Cancel
                             </button>
                             <button
-                                onClick={async () => {
-                                    await deleteDoc(doc(db, "students", deleteStudent.studentId));
+                                onClick={() => {
+                                    deleteStudentAndAttendance(deleteStudent.studentId);
                                     setDeleteStudent(null);
                                     fetchStudents();
                                 }}

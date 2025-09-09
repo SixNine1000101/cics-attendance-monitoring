@@ -27,7 +27,7 @@ function ScannerPage() {
     // get the event's config
     useEffect(() => {
         const eventRef = doc(db, "events", eventId);
-        console.log("Listening to event config:", eventRef);
+        // console.log("Listening to event config:", eventRef);
         const unsub = onSnapshot(eventRef, (snap) => {
             if (snap.exists()) {
 
@@ -43,7 +43,7 @@ function ScannerPage() {
 
     useEffect(() => {
         if (config) {
-            console.log("Config state updated (live):", config);
+            // console.log("Config state updated (live):", config);
             configRef.current = config; // keep ref updated for access in async functions
         }
     }, [config]);
@@ -96,14 +96,28 @@ function ScannerPage() {
         const hour = now.getHours();
         const minute = now.getMinutes();
         const totalMinutes = hour * 60 + minute;
+        console.log("Total minutes:", now.toTimeString(), totalMinutes);
 
         if (totalMinutes >= 6 * 60 && totalMinutes < 8 * 60) return "07AM"; // 7AM slot is 6:00 - 8:00
-        if (totalMinutes >= 12 * 60 && totalMinutes < 13 * 60) return "12PM"; // 12PM slot is 12:00 - 13:00
+        if (totalMinutes >= 11.50 * 60 && totalMinutes < 12.50 * 60) return "12PM"; // 12PM slot is 11:30 - 12:30
         if (totalMinutes >= 13 * 60 && totalMinutes < 14 * 60) return "01PM"; // 1PM slot is 13:00 - 14:00
-        if (totalMinutes >= 16.5 * 60 && totalMinutes < 18 * 60) return "05PM"; // 5PM slot is 16:30 - 18:00
+        if (totalMinutes >= 16.50 * 60 && totalMinutes < 18 * 60) return "05PM"; // 5PM slot is 16:30 - 18:00
 
         return null; // outside slots
     };
+
+    useEffect(() => {
+        const checkSlot = () => {
+            const slot = getCurrentSlot();
+            console.log("Current slot:", slot);
+            // open scanner logic here if needed
+        };
+
+        checkSlot(); // run immediately on load
+        const interval = setInterval(checkSlot, 15 * 1000); // check every 15s
+
+        return () => clearInterval(interval);
+    }, []);
 
 
     // QR scanner setup 
