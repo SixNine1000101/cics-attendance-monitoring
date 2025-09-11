@@ -87,6 +87,10 @@ function EventsPage() {
         lastName: data.lastName,
         year: data.year,
         section: data.section,
+        "07AM": data["07AM"] ? "✅" : "❌",
+        "12PM": data["12PM"] ? "✅" : "❌",
+        "01PM": data["01PM"] ? "✅" : "❌",
+        "05PM": data["05PM"] ? "✅" : "❌",
         attended,
         percentage,
       });
@@ -146,6 +150,10 @@ function EventsPage() {
           FirstName: item.firstName,
           Year: item.year,
           Section: item.section,
+          "07AM": item["07AM"],
+          "12PM": item["12PM"],
+          "01PM": item["01PM"],
+          "05PM": item["05PM"],
           Attended: item.attended,
           Percentage: `${item.percentage}%`,
         });
@@ -245,10 +253,10 @@ function EventsPage() {
                       }`}
                   ></span>
                   <span className="text-lg font-semibold text-gray-800">{event.name}</span>
-                  {role === "admin" && (
+                  {(
                     <button data-tooltip-id="export-btn" data-tooltip-content="Export to Excel" className="bg-green-600 px-2 py-1 text-white  rounded font-medium ml-auto hover:bg-green-700"
                       onClick={() => openExportModal(event)}
-                    >export</button>
+                    >.xlsx</button>
 
                   )}
                 </div>
@@ -273,7 +281,7 @@ function EventsPage() {
                     data-tooltip-content={role === "admin" || role === "semi-admin" && event.config.allowViewing ? "" : "Only admins can view attendance right now"}
                     className={`rounded px-4 py-2 font-medium transition flex-1
                         ${role === "admin" || role === "semi-admin" && event.config.allowViewing
-                        ? "bg-blue-600 text-white hover:bg-blue-700"
+                        ? "bg-blue-600 text-white hover:bg-blue-500"
                         : "bg-gray-400 text-gray-200 cursor-not-allowed hover:bg-gray-500"
                       }`}
                     onClick={() => navigate(`/events/${event.id}/attendance`)}
@@ -283,9 +291,10 @@ function EventsPage() {
 
                   {/* Scan */}
                   {((role === "admin" || role === "semi-admin") && event.status === "ongoing") && (
+                    <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-[2px] rounded w-32 hover:w-40 transition-all duration-300 ease-in-out">
                     <button
                       data-tooltip-id="scan-btn" data-tooltip-content="Go to Scanner"
-                      className="bg-slate-600 text-white rounded px-4 py-2 font-medium hover:bg-slate-700 transition-all duration-300 ease-in-out w-32 hover:w-40"
+                      className="bg-slate-600 text-white rounded px-4 py-2 font-medium hover:bg-slate-500 transition-all duration-300 ease-in-out w-full h-full"
                       onClick={() => navigate(`/events/${event.id}/scanner`)}
                     >
                       <div className="flex items-center justify-center">
@@ -293,6 +302,7 @@ function EventsPage() {
                         <span>Scan</span>
                       </div>
                     </button>
+                    </div>
                   )}
                 </div>
 
@@ -397,7 +407,7 @@ function EventsPage() {
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 relative">
             <h3 className="text-xl font-semibold mb-4">
-              Export {exportEvent.name} as Excel
+              Export <i className="font-normal">{exportEvent.name}</i> to Excel
             </h3>
 
             <div className="flex items-center gap-2 mb-2">

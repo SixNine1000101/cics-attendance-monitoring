@@ -270,7 +270,9 @@ function ScannerPage() {
             );
             setScannerState("scanning");
             addNotification(`✅ Marked ${firstName} ${lastName} (${studentId}) present for ${slot}`, 'success');
-
+            if ("vibrate" in navigator) {
+                navigator.vibrate(200);
+            }
             setIsProcessing(true);
             setTimeout(() => setIsProcessing(false), 4000);
         } catch (error) {

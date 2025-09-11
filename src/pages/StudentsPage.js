@@ -96,7 +96,7 @@ function StudentsPage() {
 
         // 1. Query events that are today or in the future
         const eventsRef = collection(db, "events");
-        const q = query(eventsRef, where("date", ">=", today));
+        const q = query(eventsRef, where("date", ">=", "2025-09-09")); // today format "YYYY-MM-DD"
         const snapshot = await getDocs(q);
 
         const batch = writeBatch(db);
