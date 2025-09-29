@@ -61,78 +61,48 @@ function AttendanceBoardPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // 1. Load event and slots
+  useEffect(() => {
+    if (!eventId) return;
+    (async () => {
+      const eventRef = doc(db, "events", eventId);
+      const eventSnap = await getDoc(eventRef);
+      if (!eventSnap.exists()) return;
+
+      setSlots(eventSnap.data().slots || []);
+      setEventName(eventSnap.data().name || "");
+      setEventConfig(eventSnap.data().config || {});
+    })();
+  }, [eventId]);
+
+
   // Subscribe to attendance
   useEffect(() => {
-    if (!eventId || !role) return; // wait until role known
+    if (!eventId || !role || slots.length === 0) return;
 
-    const fetchData = async () => {
-      try {
-        const eventRef = doc(db, "events", eventId);
-        const eventSnap = await getDoc(eventRef);
+    const unsubscribe = onSnapshot(
+      collection(db, "events", eventId, "attendance"),
+      (snapshot) => {
+        let results = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          let attended = 0;
+          slots.forEach((slot) => {
+            const key = slot.label || slot;
+            if (data[key]) attended++;
+          });
 
-        if (!eventSnap.exists()) {
-          navigate("/not-found");
-          return;
-        }
+          const percentage = Math.round((attended / slots.length) * 100);
 
-        const config = eventSnap.data().config || {};
-        setEventName(eventSnap.data().name || "");
-        setEventConfig(config);
-        setSlots(eventSnap.data().slots || []);
-
-        // ✅ check role before subscribing
-        if (!config.allowViewing && role !== "admin") {
-          navigate("/unauthorized");
-          return;
-        }
-
-        const unsubscribe = onSnapshot(
-          collection(db, "events", eventId, "attendance"),
-          (snapshot) => {
-            let results = [];
-            snapshot.forEach((docSnap) => {
-              const data = docSnap.data();
-              let attended = 0;
-              slots.forEach((slot) => {
-                if (data[slot]) attended++;
-              });
-              const percentage = Math.round((attended / slots.length) * 100);
-
-              results.push({
-                id: docSnap.id,
-                firstName: data.firstName,
-                lastName: data.lastName,
-                year: data.year,
-                section: data.section,
-                attended,
-                percentage,
-              });
-            });
-            setStudents(results);
-            setLoading(false);
-          },
-          (error) => {
-            console.error("Error fetching attendance:", error);
-            setLoading(false);
-          }
-        );
-
-        return unsubscribe;
-      } catch (err) {
-        console.error("Error loading event:", err);
+          results.push({ id: docSnap.id, ...data, attended, percentage });
+        });
+        setStudents(results);
         setLoading(false);
       }
-    };
+    );
 
-    const unsubscribePromise = fetchData();
-
-    return () => {
-      unsubscribePromise.then((unsubscribe) => {
-        if (typeof unsubscribe === "function") unsubscribe();
-      });
-    };
-  }, [eventId, role, navigate]);
-
+    return () => unsubscribe();
+  }, [eventId, role, slots]);
   // Available sections
   const availableSections = () => {
     if (filterYear === "all") return [];
