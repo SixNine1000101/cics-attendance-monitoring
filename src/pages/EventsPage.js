@@ -8,8 +8,7 @@ import { saveAs } from "file-saver";
 import { QrCodeIcon, PencilSquareIcon } from "@heroicons/react/24/outline";
 import loadingGif from "../assets/gif/loading-fill.gif";
 import { Tooltip } from "react-tooltip";
-const { DateTime } = require('luxon');
-
+const { DateTime } = require("luxon");
 
 function EventsPage() {
   const navigate = useNavigate();
@@ -20,27 +19,20 @@ function EventsPage() {
 
   // for export
   const [attendance, setAttendance] = useState([]);
-  // selected event for export
   const [exportEvent, setExportEvent] = useState(null);
-  const [groupOption, setGroupOption] = useState("yearSection");
   const [filterYear, setFilterYear] = useState("all");
   const [filterSection, setFilterSection] = useState("all");
 
   // Modal state
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [allowOverride, setAllowOverride] = useState(false);
-  const [allowViewing, setAllowViewing] = useState(false)
+  const [allowViewing, setAllowViewing] = useState(false);
   const [forceSlot, setForceSlot] = useState("");
-
-
 
   // categorize based on date
   const categorizeEvent = (eventDate) => {
     if (!eventDate) return "unknown";
-    const today = DateTime.now().setZone('Asia/Manila').toISODate(); // YYYY-MM-DD
-    // console.log(today); 
-
-    // console.log(today.toLocaleString('en-PH', { timeZone: 'Asia/Manila' }));
+    const today = DateTime.now().setZone("Asia/Manila").toISODate();
     if (eventDate === today) return "ongoing";
     if (eventDate > today) return "upcoming";
     if (eventDate < today) return "finished";
@@ -61,7 +53,7 @@ function EventsPage() {
     return () => unsubscribe();
   }, []);
 
-  // Available sections based on chosen year
+  // Available sections for filters
   const availableSections = (students) => {
     if (filterYear === "all") return [];
     const sections = students
@@ -71,28 +63,32 @@ function EventsPage() {
   };
 
   // Fetch attendance for export
-  const fetchAttendance = async (eventId) => {
-    const snap = await getDocs(collection(db, "events", eventId, "attendance"));
+  const fetchAttendance = async (event) => {
+    const snap = await getDocs(collection(db, "events", event.id, "attendance"));
     let results = [];
-    snap.forEach((doc) => {
-      const data = doc.data();
+    snap.forEach((docSnap) => {
+      const data = docSnap.data();
+
+      // calculate attended count based on event.slots
       let attended = 0;
-      ["07AM", "12PM", "01PM", "05PM"].forEach((slot) => {
-        if (data[slot]) attended++;
+      event.slots?.forEach((slot) => {
+        if (data[slot.label]) attended++;
       });
-      const percentage = Math.round((attended / 4) * 100);
+
+      const percentage =
+        event.slots && event.slots.length > 0
+          ? Math.round((attended / event.slots.length) * 100)
+          : 0;
+
       results.push({
-        id: doc.id,
+        id: docSnap.id,
         firstName: data.firstName,
         lastName: data.lastName,
         year: data.year,
         section: data.section,
-        "07AM": data["07AM"] ? "✅" : "❌",
-        "12PM": data["12PM"] ? "✅" : "❌",
-        "01PM": data["01PM"] ? "✅" : "❌",
-        "05PM": data["05PM"] ? "✅" : "❌",
         attended,
         percentage,
+        slots: data, // keep raw slot data for later
       });
     });
     return results;
@@ -101,14 +97,13 @@ function EventsPage() {
   // Export logic
   const openExportModal = async (event) => {
     setExportEvent(event);
-    const students = await fetchAttendance(event.id);
+    const students = await fetchAttendance(event);
     setAttendance(students);
   };
 
-  // Export to Excel
   const handleExport = async () => {
     if (!exportEvent) return;
-    let students = await fetchAttendance(exportEvent.id);
+    let students = await fetchAttendance(exportEvent);
 
     // Apply filters
     let filtered = students.filter((s) => {
@@ -117,47 +112,28 @@ function EventsPage() {
       return true;
     });
 
-    // Always sort by lastName asc
     filtered.sort((a, b) => a.lastName.localeCompare(b.lastName));
 
-    // Always group by Year -> Section
-    let groupedData = [];
-    const years = [...new Set(filtered.map((s) => s.year))].sort();
-
-    years.forEach((year) => {
-      // groupedData.push({ Header: `Year ${year}` });
-      const sections = [
-        ...new Set(filtered.filter((s) => s.year === year).map((s) => s.section)),
-      ].sort();
-
-      sections.forEach((section) => {
-        // groupedData.push({ Header: `Section ${section}` });
-        groupedData.push(
-          ...filtered.filter((s) => s.year === year && s.section === section)
-        );
-      });
-    });
-
-    // Flatten for Excel
+    // Build Excel data dynamically
     let excelData = [];
-    groupedData.forEach((item) => {
-      if (item.Header) {
-        excelData.push({ StudentID: item.Header });
-      } else {
-        excelData.push({
-          StudentID: item.id,
-          LastName: item.lastName,
-          FirstName: item.firstName,
-          Year: item.year,
-          Section: item.section,
-          "07AM": item["07AM"],
-          "12PM": item["12PM"],
-          "01PM": item["01PM"],
-          "05PM": item["05PM"],
-          Attended: item.attended,
-          Percentage: `${item.percentage}%`,
-        });
-      }
+    filtered.forEach((s) => {
+      let row = {
+        StudentID: s.id,
+        LastName: s.lastName,
+        FirstName: s.firstName,
+        Year: s.year,
+        Section: s.section,
+      };
+
+      // add dynamic slot columns
+      exportEvent.slots?.forEach((slot) => {
+        row[slot.label] = s.slots[slot.label] ? "✅" : "❌";
+      });
+
+      row.Attended = s.attended;
+      row.Percentage = `${s.percentage}%`;
+
+      excelData.push(row);
     });
 
     // Create Excel file
@@ -174,7 +150,6 @@ function EventsPage() {
     setExportEvent(null);
   };
 
-
   // Fetch events
   useEffect(() => {
     const unsubscribe = onSnapshot(
@@ -183,11 +158,20 @@ function EventsPage() {
         let list = [];
         snapshot.forEach((doc) => {
           const data = doc.data();
-          const status = categorizeEvent(data.date); // categorize based on date
+          const status = categorizeEvent(data.date);
           list.push({ id: doc.id, ...data, status });
         });
 
-        list.sort((a, b) => (a.date < b.date ? 1 : -1));
+        // sort: ongoing first, then upcoming, then finished
+        list.sort((a, b) => {
+          if (a.status === b.status) return a.date.localeCompare(b.date);
+          if (a.status === "ongoing") return -1;
+          if (b.status === "ongoing") return 1;
+          if (a.status === "upcoming") return -1;
+          if (b.status === "upcoming") return 1;
+          return 0;
+        });
+
         setEvents(list);
         setLoading(false);
       },
@@ -203,7 +187,7 @@ function EventsPage() {
   const openConfigModal = (event) => {
     setSelectedEvent(event);
     setAllowOverride(event.config.allowOverride || false);
-    setAllowViewing(event.config.allowViewing || false)
+    setAllowViewing(event.config.allowViewing || false);
     setForceSlot(event.config.forceSlot || "");
   };
 
@@ -211,14 +195,14 @@ function EventsPage() {
   const saveConfig = async () => {
     if (!selectedEvent) return;
     await setDoc(
-      doc(db, "events", selectedEvent.id), {
-      config: {
-        "allowOverride": allowOverride,
-        "forceSlot": forceSlot || null,
-        "allowViewing": allowViewing,
+      doc(db, "events", selectedEvent.id),
+      {
+        config: {
+          allowOverride: allowOverride,
+          forceSlot: forceSlot || null,
+          allowViewing: allowViewing,
+        },
       },
-    },
-      // { allowOverride, forceSlot: forceSlot || null },
       { merge: true }
     );
     setSelectedEvent(null);
@@ -252,22 +236,26 @@ function EventsPage() {
                         : "bg-gray-500"
                       }`}
                   ></span>
-                  <span className="text-lg font-semibold text-gray-800">{event.name}</span>
-                  {(
-                    <button data-tooltip-id="export-btn" data-tooltip-content="Export to Excel" className="bg-green-600 px-2 py-1 text-white  rounded font-medium ml-auto hover:bg-green-700"
-                      onClick={() => openExportModal(event)}
-                    >.xlsx</button>
-
-                  )}
+                  <span className="text-lg font-semibold text-gray-800">
+                    {event.name}
+                  </span>
+                  <button
+                    data-tooltip-id="export-btn"
+                    data-tooltip-content="Export to Excel"
+                    className="bg-green-600 px-2 py-1 text-white  rounded font-medium ml-auto hover:bg-green-700"
+                    onClick={() => openExportModal(event)}
+                  >
+                    .xlsx
+                  </button>
                 </div>
                 <div className="text-sm text-gray-500 mb-4">{event.date}</div>
                 <div className="flex flex-wrap gap-2 mb-4">
                   {event.slots?.map((slot) => (
                     <span
-                      key={slot}
+                      key={slot.id || slot.label}
                       className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-medium"
                     >
-                      {slot}
+                      {slot.label || slot}
                     </span>
                   ))}
                 </div>
@@ -276,11 +264,22 @@ function EventsPage() {
                 <div className="flex gap-4">
                   {/* View Attendance */}
                   <button
-                    disabled={role === "admin" || role === "semi-admin" && event.config.allowViewing ? false : true}
+                    disabled={
+                      role === "admin" ||
+                        (role === "semi-admin" && event.config.allowViewing)
+                        ? false
+                        : true
+                    }
                     data-tooltip-id="view-attendance-btn"
-                    data-tooltip-content={role === "admin" || role === "semi-admin" && event.config.allowViewing ? "" : "Only admins can view attendance right now"}
+                    data-tooltip-content={
+                      role === "admin" ||
+                        (role === "semi-admin" && event.config.allowViewing)
+                        ? ""
+                        : "Only admins can view attendance right now"
+                    }
                     className={`rounded px-4 py-2 font-medium transition flex-1
-                        ${role === "admin" || role === "semi-admin" && event.config.allowViewing
+                        ${role === "admin" ||
+                        (role === "semi-admin" && event.config.allowViewing)
                         ? "bg-blue-600 text-white hover:bg-blue-500"
                         : "bg-gray-400 text-gray-200 cursor-not-allowed hover:bg-gray-500"
                       }`}
@@ -290,26 +289,29 @@ function EventsPage() {
                   </button>
 
                   {/* Scan */}
-                  {((role === "admin" || role === "semi-admin") && event.status === "ongoing") && (
-                    <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-[2px] rounded w-32 hover:w-40 transition-all duration-300 ease-in-out">
-                    <button
-                      data-tooltip-id="scan-btn" data-tooltip-content="Go to Scanner"
-                      className="bg-slate-600 text-white rounded px-4 py-2 font-medium hover:bg-slate-500 transition-all duration-300 ease-in-out w-full h-full"
-                      onClick={() => navigate(`/events/${event.id}/scanner`)}
-                    >
-                      <div className="flex items-center justify-center">
-                        <QrCodeIcon className="h-6 w-6 mr-2" />
-                        <span>Scan</span>
+                  {(role === "admin" || role === "semi-admin") &&
+                    event.status === "ongoing" && (
+                      <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-[2px] rounded w-32 hover:w-40 transition-all duration-300 ease-in-out">
+                        <button
+                          data-tooltip-id="scan-btn"
+                          data-tooltip-content="Go to Scanner"
+                          className="bg-slate-600 text-white rounded px-4 py-2 font-medium hover:bg-slate-500 transition-all duration-300 ease-in-out w-full h-full"
+                          onClick={() => navigate(`/events/${event.id}/scanner`)}
+                        >
+                          <div className="flex items-center justify-center">
+                            <QrCodeIcon className="h-6 w-6 mr-2" />
+                            <span>Scan</span>
+                          </div>
+                        </button>
                       </div>
-                    </button>
-                    </div>
-                  )}
+                    )}
                 </div>
 
-                {/*Edit Scanning Rules (only for admins) */}
-                {(role === "admin") && (
+                {/* Edit Rules */}
+                {role === "admin" && (
                   <button
-                    data-tooltip-id="edit-rules-btn" data-tooltip-content="Edit Scanning Rules"
+                    data-tooltip-id="edit-rules-btn"
+                    data-tooltip-content="Edit Scanning Rules"
                     className="bg-gray-600 text-white rounded px-4 py-2 font-medium hover:bg-gray-500 transition"
                     onClick={() => openConfigModal(event)}
                   >
@@ -325,7 +327,8 @@ function EventsPage() {
         </div>
       )}
 
-      {/* modal for editing scanning rules */}
+      {/* modals below... unchanged */}
+      {/* Config Modal */}
       {selectedEvent && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 relative">
@@ -340,14 +343,7 @@ function EventsPage() {
                 onChange={(e) => setAllowViewing(e.target.checked)}
                 className="sr-only peer"
               />
-              <div class="relative w-11 h-6 bg-gray-200 
-              rounded-full peer peer-focus:ring-4
-              dark:bg-gray-500 peer-checked:after:translate-x-full 
-              rtl:peer-checked:after:-translate-x-full  after:content-[''] 
-              after:absolute after:top-0.5 after:start-[2px] after:bg-white
-              after:rounded-full after:h-5 
-              after:w-5 after:transition-all
-              peer-checked:bg-blue-600 dark:peer-checked:bg-blue-600"></div>
+              <div className="relative w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 dark:bg-gray-500 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full  after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-600"></div>
               Allow viewing
             </label>
 
@@ -358,14 +354,7 @@ function EventsPage() {
                 onChange={(e) => setAllowOverride(e.target.checked)}
                 className="sr-only peer"
               />
-              <div class="relative w-11 h-6 bg-gray-200 
-              rounded-full peer peer-focus:ring-4
-              dark:bg-gray-500 peer-checked:after:translate-x-full 
-              rtl:peer-checked:after:-translate-x-full  after:content-[''] 
-              after:absolute after:top-0.5 after:start-[2px] after:bg-white
-              after:rounded-full after:h-5 
-              after:w-5 after:transition-all
-              peer-checked:bg-blue-600 dark:peer-checked:bg-blue-600"></div>
+              <div className="relative w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 dark:bg-gray-500 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full  after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:peer-checked:bg-blue-600"></div>
               Allow scanning outside time slots
             </label>
 
@@ -377,10 +366,11 @@ function EventsPage() {
                 className="border rounded px-2 py-1 ml-2 cursor-pointer"
               >
                 <option value="">-- No Forced Slot --</option>
-                <option value="07AM">07AM</option>
-                <option value="12PM">12PM</option>
-                <option value="01PM">01PM</option>
-                <option value="05PM">05PM</option>
+                {selectedEvent.slots?.map((slot) => (
+                  <option key={slot.id || slot.label} value={slot.label}>
+                    {slot.label} ({slot.start}–{slot.end})
+                  </option>
+                ))}
               </select>
             </label>
 
@@ -402,7 +392,7 @@ function EventsPage() {
         </div>
       )}
 
-      {/* modal for export */}
+      {/* Export Modal */}
       {exportEvent && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 relative">
@@ -417,7 +407,7 @@ function EventsPage() {
                   value={filterYear}
                   onChange={(e) => {
                     setFilterYear(e.target.value);
-                    setFilterSection("all"); // reset section when year changes
+                    setFilterSection("all");
                   }}
                   className="border rounded px-2 py-1 ml-2"
                 >
@@ -468,8 +458,7 @@ function EventsPage() {
 
       <Tooltip id="export-btn" place="top" />
       <Tooltip id="view-attendance-btn" place="bottom" />
-      <Tooltip id="scan-btn" place={role === "admin"?"top":"bottom"} />
-      {/* <Tooltip id="edit-rules-btn" place="bottom" /> */}
+      <Tooltip id="scan-btn" place={role === "admin" ? "top" : "bottom"} />
     </div>
   );
 }

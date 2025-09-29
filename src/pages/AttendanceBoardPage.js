@@ -26,6 +26,8 @@ function AttendanceBoardPage() {
   const [groupOption, setGroupOption] = useState("none");
   const [filterYear, setFilterYear] = useState("all");
   const [filterSection, setFilterSection] = useState("all");
+  // updated slots based on event.slots NOT inside eventConfig but inside event
+  const [slots, setSlots] = useState([]);
 
   // For scroll to top button
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -59,8 +61,6 @@ function AttendanceBoardPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const slots = ["07AM", "12PM", "01PM", "05PM"];
-
   // Subscribe to attendance
   useEffect(() => {
     if (!eventId || !role) return; // wait until role known
@@ -78,6 +78,7 @@ function AttendanceBoardPage() {
         const config = eventSnap.data().config || {};
         setEventName(eventSnap.data().name || "");
         setEventConfig(config);
+        setSlots(eventSnap.data().slots || []);
 
         // ✅ check role before subscribing
         if (!config.allowViewing && role !== "admin") {

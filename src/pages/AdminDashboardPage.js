@@ -8,12 +8,47 @@ function AdminDashboardPage() {
   const [showModal, setShowModal] = useState(false);
 
   const [eventName, setEventName] = useState("");
-  const [eventDate, setEventDate] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
   const [status, setStatus] = useState("");
+  const [attendeeScope, setAttendeeScope] = useState("all");
 
-  const slots = ["07AM", "12PM", "01PM", "05PM"];
+  const [previewDates, setPreviewDates] = useState([]);
 
-  // check if user is logged in
+  // default slots
+  const [slots, setSlots] = useState([
+    { id: "07AM", label: "07AM", start: "06:00", end: "08:00" },
+    { id: "12PM", label: "12PM", start: "12:00", end: "13:00" },
+    { id: "01PM", label: "01PM", start: "13:00", end: "14:00" },
+    { id: "05PM", label: "05PM", start: "16:30", end: "18:00" },
+  ]);
+  const [slotsOpen, setSlotsOpen] = useState(false);
+
+  // slot management
+  const addSlot = () => {
+    setSlots([...slots, { id: crypto.randomUUID(), label: "", start: "", end: "" }]);
+  };
+
+  const updateSlot = (id, field, value) => {
+    setSlots(slots.map(slot =>
+      slot.id === id ? { ...slot, [field]: value } : slot
+    ));
+  };
+
+  const removeSlot = (id) => {
+    setSlots(slots.filter(slot => slot.id !== id));
+  };
+
+  useEffect(() => {
+    if (startDate && endDate) {
+      setPreviewDates(getDateRange(startDate, endDate));
+    } else {
+      setPreviewDates([]);
+    }
+  }, [startDate, endDate, slots]);
+
+  // auth guard
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (!user) navigate("/login");
@@ -26,76 +61,99 @@ function AdminDashboardPage() {
     navigate("/login");
   };
 
-  // create new event
+  // helper: generate date range
+  function getDateRange(start, end) {
+    const result = [];
+    let curr = new Date(start);
+    const last = new Date(end);
+    while (curr <= last) {
+      result.push(curr.toISOString().split("T")[0]);
+      curr.setDate(curr.getDate() + 1);
+    }
+    return result;
+  }
+
+  // create multi-day event (creates one event per day)
   const createEvent = async () => {
-    if (!eventName.trim() || !eventDate.trim()) {
-      setStatus("⚠️ Please enter both date and name.");
+    if (!eventName.trim() || !startDate.trim() || !endDate.trim()) {
+      setStatus("⚠️ Please enter event name and date range.");
       return;
     }
 
-    const eventId = `${eventDate}_${eventName.replace(/\s+/g, "-").toLowerCase()}`; // e.g., "2023-09-01_orientation"
+    const dates = getDateRange(startDate, endDate);
 
     try {
-      setStatus("Setting up event...");
+      setStatus("Setting up multi-day event...");
 
-      await setDoc(doc(db, "events", eventId), {
-        name: eventName,
-        date: eventDate,
-        slots,
-        createdBy: auth.currentUser?.uid || "system",
-        createdAt: new Date(),
-        config: {
-          "allowOverride": false,
-          "forceSlot": null
-        },
-      });
+      let totalCreated = 0;
 
-      // for denormalized collection for faster fetching
-      // get the students list
-      // for denormalized collection for faster fetching
-      const studentsSnap = await getDocs(collection(db, "students"));
-      let total = 0;
-      let batch = writeBatch(db);
-      let batchCount = 0;
-      // for each students, add their infos in the attendance collection with their matching id
-      for (const studentDoc of studentsSnap.docs) {
-        const studentData = studentDoc.data();
-        const studentId = studentDoc.id;
+      for (const date of dates) {
+        const eventId = `${date}_${eventName.replace(/\s+/g, "-").toLowerCase()}`;
 
-        const attendanceRef = doc(db, "events", eventId, "attendance", studentId);
-
-        const slotData = {};
-        slots.forEach((slot) => {
-          slotData[slot] = false;
+        await setDoc(doc(db, "events", eventId), {
+          name: eventName,
+          date,
+          slots,
+          createdBy: auth.currentUser?.uid || "system",
+          createdAt: new Date(),
+          config: {
+            allowOverride: false,
+            forceSlot: null,
+          },
         });
 
-        batch.set(attendanceRef, {
-          studentId,
-          ...studentData,
-          ...slotData,
-        });
+        // attendees
+        if (attendeeScope === "empty") {
+          // no attendees preloaded
+        } else {
+          let snap;
+          if (attendeeScope === "all") {
+            snap = await getDocs(collection(db, "students"));
+          } else if (attendeeScope === "officers") {
+            snap = await getDocs(collection(db, "officers"));
+          }
 
-        total++;
-        batchCount++;
+          let batch = writeBatch(db);
+          let batchCount = 0;
 
-        // Firestore limits batch writes to 500
-        if (batchCount === 500) {
-          await batch.commit();
-          batch = writeBatch(db);
-          batchCount = 0;
+          for (const docSnap of snap.docs) {
+            const data = docSnap.data();
+            const id = docSnap.id;
+
+            const attendanceRef = doc(db, "events", eventId, "attendance", id);
+
+            const slotData = {};
+            slots.forEach((slot) => {
+              slotData[slot.label] = false;
+            });
+
+            batch.set(attendanceRef, {
+              studentId: id,
+              ...data,
+              ...slotData,
+            });
+
+            batchCount++;
+            if (batchCount === 500) {
+              await batch.commit();
+              batch = writeBatch(db);
+              batchCount = 0;
+            }
+          }
+
+          if (batchCount > 0) {
+            await batch.commit();
+          }
         }
+
+        totalCreated++;
       }
 
-      // Commit any remaining students
-      if (batchCount > 0) {
-        await batch.commit();
-      }
-
-      setStatus(`✅ Event "${eventName}" created with ${total} students.`);
+      setStatus(`✅ Created ${totalCreated} event(s) for "${eventName}".`);
       setEventName("");
-      setEventDate("");
+      setStartDate("");
+      setEndDate("");
 
-      // close modal after success
       setTimeout(() => {
         setShowModal(false);
         setStatus("");
@@ -132,15 +190,6 @@ function AdminDashboardPage() {
           <p className="text-sm text-gray-500">Add, edit or remove students</p>
         </button>
 
-        {/* <button
-          onClick={() => navigate("/scanner")}
-          className="bg-white shadow-md rounded-xl p-6 flex flex-col items-start hover:shadow-lg transition"
-        >
-          <div className="text-gray-500 text-3xl mb-2">📷</div>
-          <h3 className="text-lg font-semibold text-gray-700">Open Scanner</h3>
-          <p className="text-sm text-gray-500">Scan student QR codes</p>
-        </button> */}
-
         <button
           onClick={handleLogout}
           className="bg-white shadow-md rounded-xl p-6 flex flex-col items-start hover:shadow-lg transition"
@@ -154,14 +203,9 @@ function AdminDashboardPage() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
-            <h3 className="text-xl font-semibold mb-4 text-gray-700">Create New Event</h3>
-            <input
-              type="date"
-              value={eventDate}
-              onChange={(e) => setEventDate(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 max-h-screen">
+            <h3 className="text-xl font-semibold mb-4 text-gray-700">Create Multi-Day Event</h3>
+
             <input
               type="text"
               placeholder="Event Name"
@@ -169,16 +213,112 @@ function AdminDashboardPage() {
               onChange={(e) => setEventName(e.target.value)}
               className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
+
+            {/* Date Inputs */}
+            <div className="flex gap-2 mb-4">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
+
+            {/* Time Slots */}
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={() => setSlotsOpen(!slotsOpen)}
+                className="flex justify-between w-full bg-gray-100 px-3 py-2 rounded"
+              >
+                <span className="font-semibold text-gray-700">Time Slots</span>
+                <span>{slotsOpen ? "▲" : "▼"}</span>
+              </button>
+
+              {slotsOpen && (
+                <div className="mt-3 space-y-3  overflow-y-auto">
+                  {slots.map((slot) => (
+                    <div key={slot.id} className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        placeholder="Label"
+                        value={slot.label}
+                        onChange={(e) => updateSlot(slot.id, "label", e.target.value)}
+                        className="flex-1 border rounded px-2 py-1 w-16"
+                      />
+                      <input
+                        type="time"
+                        value={slot.start}
+                        onChange={(e) => updateSlot(slot.id, "start", e.target.value)}
+                        className="border rounded px-2 py-1"
+                      />
+                      <input
+                        type="time"
+                        value={slot.end}
+                        onChange={(e) => updateSlot(slot.id, "end", e.target.value)}
+                        className="border rounded px-2 py-1"
+                      />
+                      <button
+                        onClick={() => removeSlot(slot.id)}
+                        className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+                      >
+                        ❌
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addSlot}
+                    className="w-30 bg-green-500 text-white rounded px-3 py-1 hover:bg-green-600"
+                  >
+                    ➕ Add Slot
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Attendees */}
+            <select
+              value={attendeeScope}
+              onChange={(e) => setAttendeeScope(e.target.value)}
+              className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <option value="all">All Students</option>
+              <option value="officers">Officers Only</option>
+              <option value="empty">Empty (manual add later)</option>
+            </select>
+
+            {/* Preview Section */}
+            {previewDates.length > 0 && (
+              <div className="mb-4 border rounded bg-gray-50 p-3 max-h-40 overflow-y-auto">
+                <p className="font-semibold text-gray-700 mb-2">
+                  Preview ({previewDates.length} event{previewDates.length > 1 ? "s" : ""}):
+                </p>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  {previewDates.map((d) => (
+                    <li key={d}>
+                      📅 {d} — {slots.length} slot{slots.length > 1 ? "s" : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <button
               onClick={createEvent}
               className="w-full bg-blue-600 text-white rounded px-4 py-2 font-medium hover:bg-blue-700 transition"
             >
-              Create Event
+              Create Event(s)
             </button>
 
             <div className="pt-4 flex items-center gap-2">
-              {status.startsWith("Setting up event...") && (
-                  <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+              {status.startsWith("Setting up") && (
+                <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
               )}
               {status && <span className="text-sm text-gray-600">{status}</span>}
             </div>
