@@ -261,7 +261,7 @@ function EventsPage() {
                 </div>
               </div>
               <div className="flex flex-col gap-2">
-                <div className="flex gap-4">
+                <div className="flex gap-2">
                   {/* View Attendance */}
                   <button
                     disabled={
@@ -291,11 +291,11 @@ function EventsPage() {
                   {/* Scan */}
                   {(role === "admin" || role === "semi-admin") &&
                     event.status === "ongoing" && (
-                      <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-[2px] rounded w-32 hover:w-40 transition-all duration-300 ease-in-out">
+                      <div className="rounded w-32 hover:w-40 transition-all duration-300 ease-in-out">
                         <button
                           data-tooltip-id="scan-btn"
                           data-tooltip-content="Go to Scanner"
-                          className="bg-slate-600 text-white rounded px-4 py-2 font-medium hover:bg-slate-500 transition-all duration-300 ease-in-out w-full h-full"
+                          className="bg-gradient-to-r to-indigo-500 via-purple-500 from-pink-500 text-white rounded px-4 py-2 font-medium hover:bg-slate-500 transition-all duration-300 ease-in-out w-full h-full"
                           onClick={() => navigate(`/events/${event.id}/scanner`)}
                         >
                           <div className="flex items-center justify-center">

@@ -4,13 +4,13 @@ import { getAuth } from "firebase/auth";
 // import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBK4_V4EUwa36R7pDtahU6cAiQHvmwRLb4",
-  authDomain: "cics-attendance-monitoring.firebaseapp.com",
-  projectId: "cics-attendance-monitoring",
-  storageBucket: "cics-attendance-monitoring.firebasestorage.app",
-  messagingSenderId: "798555421834",
-  appId: "1:798555421834:web:29a6b300b85b5edb414173",
-  measurementId: "G-8WB7C52F3F"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
 };
 
 // Initialize Firebase

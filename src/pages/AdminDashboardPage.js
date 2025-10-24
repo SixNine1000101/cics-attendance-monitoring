@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, db } from "../firebase";
 import { collection, getDocs, doc, setDoc, writeBatch } from "firebase/firestore";
+import { PlusIcon, XMarkIcon, CalendarDaysIcon } from "@heroicons/react/24/outline";
 
 function AdminDashboardPage() {
   const navigate = useNavigate();
@@ -87,11 +88,13 @@ function AdminDashboardPage() {
 
       let totalCreated = 0;
 
+      let i = 1;
       for (const date of dates) {
         const eventId = `${date}_${eventName.replace(/\s+/g, "-").toLowerCase()}`;
 
+
         await setDoc(doc(db, "events", eventId), {
-          name: eventName,
+          name: `${eventName} - Day ${i++}`,
           date,
           slots,
           createdBy: auth.currentUser?.uid || "system",
@@ -215,16 +218,18 @@ function AdminDashboardPage() {
             />
 
             {/* Date Inputs */}
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-1 mb-4">
+              <div className="flex items-center text-gray-600">From:</div>
               <input
                 type="date"
-                value={startDate}
+                value={Date.now() || startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 className="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
+              <div className="flex items-center text-gray-600">To:</div>
               <input
                 type="date"
-                value={endDate}
+                value={ Date.now() || endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 className="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
@@ -268,16 +273,16 @@ function AdminDashboardPage() {
                         onClick={() => removeSlot(slot.id)}
                         className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
                       >
-                        ❌
+                        <XMarkIcon className="h-5 w-5" />
                       </button>
                     </div>
                   ))}
                   <button
                     type="button"
                     onClick={addSlot}
-                    className="w-30 bg-green-500 text-white rounded px-3 py-1 hover:bg-green-600"
+                    className="w-30 bg-green-500 text-white rounded px-3 py-1 hover:bg-green-600 justify-center flex items-center gap-1"
                   >
-                    ➕ Add Slot
+                    <PlusIcon className="h-5 w-5 inline-block" /> Add Slot
                   </button>
                 </div>
               )}
@@ -301,27 +306,40 @@ function AdminDashboardPage() {
                   Preview ({previewDates.length} event{previewDates.length > 1 ? "s" : ""}):
                 </p>
                 <ul className="text-sm text-gray-600 space-y-1">
-                  {previewDates.map((d) => (
+                  {previewDates.map((d, idx) => (
                     <li key={d}>
-                      📅 {d} — {slots.length} slot{slots.length > 1 ? "s" : ""}
+                      <CalendarDaysIcon className="w-5 h-5 inline-block mr-1" />
+                      {eventName ? `${eventName} - Day ${idx + 1}` : "Event"} — {d} —{" "}
+                      {slots.length} slot{slots.length > 1 ? "s" : ""}
                     </li>
                   ))}
                 </ul>
               </div>
             )}
+
+            {/* change this so it wont occupy space when status is empty */}
+            {/* <div className="flex items-center gap-2">
+              {status.startsWith("Setting up") && (
+                <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+              )}
+              {status && <span className="text-sm text-gray-600">{status}</span>}
+            </div> */}
+            {status && (
+              <div className="mt-2 min-h-[1.5rem] flex items-center gap-2">
+                {status.startsWith("Setting up") && (
+                  <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                )}
+                <span className="text-sm text-gray-600">{status}</span>
+              </div>
+            )}
+            
+
             <button
               onClick={createEvent}
               className="w-full bg-blue-600 text-white rounded px-4 py-2 font-medium hover:bg-blue-700 transition"
             >
               Create Event(s)
             </button>
-
-            <div className="pt-4 flex items-center gap-2">
-              {status.startsWith("Setting up") && (
-                <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-              )}
-              {status && <span className="text-sm text-gray-600">{status}</span>}
-            </div>
 
             <button
               onClick={() => setShowModal(false)}
