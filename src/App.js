@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { auth } from "./firebase";
+import React from "react";
+import useAuth from "./hooks/useAuth";
 import { signOut } from "firebase/auth";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
@@ -15,21 +15,7 @@ import "./css/AdminDashboardPage.css";
 
 
 function App() {
-  const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null);
-
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      setUser(user);
-      if (user) {
-        const tokenResult = await user.getIdTokenResult();
-        setRole(tokenResult.claims.role || null);
-      } else {
-        setRole(null);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+  const { user, role } = useAuth();
 
   return (
     <Router>
