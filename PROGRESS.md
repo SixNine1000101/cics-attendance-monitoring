@@ -108,6 +108,7 @@ Mid-term:
 ## 5) Deployment Status
 
 - The repo has been deployed to Firebase from local terminal recently (`firebase deploy` exit code 0). Confirm the target hosting site and deployed URL in your Firebase project.
+ - The repo has been deployed to Firebase from local terminal recently (`firebase deploy` exit code 0). The project is configured to deploy the same site content to the hosting site `ace-attendance-tracker` (URL: `https://ace-attendance-tracker.web.app`). Confirm the target hosting site and deployed URL in your Firebase project if you need to change it.
 - `npm run build` succeeded locally. Dev server (`npm start`) earlier failed (exit code 1) — needs investigation (likely Tailwind / PostCSS or a runtime error from recent edits).
 
 ---
