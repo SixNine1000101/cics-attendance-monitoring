@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { collection, onSnapshot, doc, setDoc, getDocs } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { db } from "../firebase";
@@ -22,11 +22,8 @@ function EventsPage() {
   const navigate = useNavigate();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null);
 
   // for export
-  const [attendance, setAttendance] = useState([]);
   const [exportEvent, setExportEvent] = useState(null);
   const [filterYear, setFilterYear] = useState("all");
   const [filterSection, setFilterSection] = useState("all");
@@ -50,19 +47,7 @@ function EventsPage() {
     return "unknown";
   };
 
-  // Auth listener
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      setUser(user);
-      if (user) {
-        const tokenResult = await user.getIdTokenResult();
-        setRole(tokenResult.claims.role || null);
-      } else {
-        setRole(null);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+  // Auth listener (handled globally via useAuth)
 
   // Memoize categorized events
   const { ongoingEvents, upcomingEvents, finishedEvents } = useMemo(() => {
@@ -98,8 +83,8 @@ function EventsPage() {
   // Export logic
   const openExportModal = async (event) => {
     setExportEvent(event);
+    // fetch attendance when opening modal; no local attendance state needed
     const students = await fetchAttendance(event);
-    setAttendance(students);
   };
 
   const handleExport = async () => {

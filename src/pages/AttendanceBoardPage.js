@@ -18,12 +18,8 @@ function AttendanceBoardPage() {
   const { eventId } = useParams();
   const [students, setStudents] = useState([]);
   const [eventName, setEventName] = useState("");
-  const [eventConfig, setEventConfig] = useState([]);
 
   const [role, setRole] = useState("");
-  const [loadingRole, setLoadingRole] = useState(true);
-
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
 
   // Pagination state
@@ -34,7 +30,7 @@ function AttendanceBoardPage() {
   // Filters and sorting
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOption, setSortOption] = useState("percentageDesc");
-  const [groupOption, setGroupOption] = useState("none");
+  const [groupOption, _setGroupOption] = useState("none");
   const [filterYear, setFilterYear] = useState("all");
   const [filterSection, setFilterSection] = useState("all");
   const [slots, setSlots] = useState([]);
@@ -82,7 +78,6 @@ function AttendanceBoardPage() {
 
       setSlots(eventSnap.data().slots || []);
       setEventName(eventSnap.data().name || "");
-      setEventConfig(eventSnap.data().config || {});
     })();
   }, [eventId]);
 

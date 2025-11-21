@@ -11,7 +11,7 @@ import {
   CalendarIcon,
   // AcademicCapIcon,
 } from "@heroicons/react/24/outline";
-import "../css/Navbar.css";
+// Navbar styles converted to Tailwind — removed external CSS import
 import aceLogo from '../assets/ace-logo2.png';
 
 
@@ -32,8 +32,11 @@ const Navbar = ({ user, role }) => {
     setShowLogoutModal(false); // Close the modal
   };
 
-  const getNavLinkClass = ({ isActive }) =>
-    isActive ? "nav-link nav-link-active" : "nav-link";
+  const getNavLinkClass = ({ isActive }) => {
+    const base =
+      "flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-3 py-2 rounded-md text-white text-sm md:text-base w-16 md:w-auto hover:bg-gray-700 transition-colors";
+    return isActive ? `${base} bg-gray-600` : base;
+  };
 
   const location = useLocation();
   const isDetailPage = location.pathname.includes("/scanner") 
@@ -45,7 +48,7 @@ const Navbar = ({ user, role }) => {
       {!user && (
         <NavLink to="/login" className={getNavLinkClass} title="Login">
           <ArrowRightOnRectangleIcon className="h-6 w-6" />
-          <span className="nav-text">Login</span>
+          <span className="mt-1 md:mt-0 md:ml-2 text-sm">Login</span>
         </NavLink>
       )}
       {role === "admin" && (
@@ -55,7 +58,7 @@ const Navbar = ({ user, role }) => {
           title="Admin"
         >
           <UserIcon className="h-6 w-6" />
-          <span className="nav-text">Admin</span>
+          <span className="mt-1 md:mt-0 md:ml-2 text-sm">Admin</span>
         </NavLink>
       )}
       {/* {user && role === "admin" && (
@@ -63,16 +66,16 @@ const Navbar = ({ user, role }) => {
       )} */}
       <NavLink to="/" className={getNavLinkClass} title="Events">
         <CalendarIcon className="h-6 w-6" />
-        <span className="nav-text">Events</span>
+        <span className="mt-1 md:mt-0 md:ml-2 text-sm">Events</span>
       </NavLink>
       {user && (
         <button
-          onClick={handleLogoutClick} // Changed to open modal
-          className="nav-link !text-red-500"
+          onClick={handleLogoutClick}
           title="Logout"
+          className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-3 py-2 rounded-md text-red-500 text-sm md:text-base w-16 md:w-auto hover:bg-gray-700 md:bg-transparent md:hover:bg-red-700 transition-colors"
         >
           <ArrowLeftOnRectangleIcon className="h-6 w-6" />
-          <span className="nav-text">Logout</span>
+          <span className="mt-1 md:mt-0 md:ml-2 text-sm">Logout</span>
         </button>
       )}
     </>
@@ -81,7 +84,7 @@ const Navbar = ({ user, role }) => {
   return (
     <>
       {/* Top Navbar (Desktop) */}
-      {!isDetailPage &&
+      {!isDetailPage && (
         <nav className="bg-gray-800 text-white px-6 py-3 shadow-md sticky top-0 z-50 hidden md:flex justify-between items-center">
           <NavLink
             to="/"
@@ -93,7 +96,7 @@ const Navbar = ({ user, role }) => {
           </NavLink>
           {!isDetailPage && <div className="flex items-center gap-4">{navLinks}</div>}
         </nav>
-      }
+      )}
 
       {/* Bottom Navbar (Mobile) */}
       <nav className="fixed bottom-0 left-0 right-0 bg-gray-800 text-white shadow-lg md:hidden z-50">
