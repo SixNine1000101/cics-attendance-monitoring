@@ -9,6 +9,7 @@ import AttendanceBoardPage from "./pages/AttendanceBoardPage";
 import ScannerPage from "./pages/ScannerPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 import StudentsPage from "./pages/StudentsPage";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
 import "./css/AdminDashboardPage.css";
 
@@ -41,36 +42,26 @@ function App() {
           <Route
             path="/admin-dashboard"
             element={
-              !user ? (
-                <LoginPage />
-              ) : role === "admin" ? (
+              <ProtectedRoute user={user} role={role} requiredRoles="admin">
                 <AdminDashboardPage />
-              ) : (
-                <UnauthorizedPage />
-              )
+              </ProtectedRoute>
             }
           />
           <Route
             path="/admin-dashboard/students"
             element={
-              !user ? (
-                <LoginPage />
-              ) : role === "admin" ? (
+              <ProtectedRoute user={user} role={role} requiredRoles="admin">
                 <StudentsPage />
-              ) : (
-                <UnauthorizedPage />
-              )
+              </ProtectedRoute>
             }
           />
           <Route path="/events" element={<EventsPage />} />
           <Route
             path="/events/:eventId/scanner"
             element={
-              role === "admin" || role === "semi-admin" ? (
+              <ProtectedRoute user={user} role={role} requiredRoles={["admin", "semi-admin"]}>
                 <ScannerPage />
-              ) : (
-                <LoginPage />
-              )
+              </ProtectedRoute>
             }
           />
           {/* <Route path="/attendance" element={<AttendanceBoardPage />} /> */}
