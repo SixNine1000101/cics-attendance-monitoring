@@ -6,7 +6,6 @@ import { auth } from "../firebase";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import loadingGif from "../assets/gif/loading-fill.gif";
-import { Tooltip } from "react-tooltip";
 
 import {
   PencilSquareIcon,

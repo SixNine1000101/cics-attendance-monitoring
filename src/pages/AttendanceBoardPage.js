@@ -3,7 +3,6 @@ import { collection, doc, getDoc, query, orderBy, limit, startAfter, where, getD
 import { auth, db } from "../firebase";
 import { useParams } from "react-router-dom";
 import loadingGif from "../assets/gif/loading-fill.gif";
-import { Tooltip } from 'react-tooltip';
 import { useNavigate } from "react-router-dom";
 import {
   MagnifyingGlassIcon,
