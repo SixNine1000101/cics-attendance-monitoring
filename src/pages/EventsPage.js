@@ -6,6 +6,7 @@ import { auth } from "../firebase";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import loadingGif from "../assets/gif/loading-fill.gif";
+import Tooltip from "../components/Tooltip";
 
 import {
   PencilSquareIcon,
@@ -295,8 +296,12 @@ function EventsPage() {
                                 onClick={() => openExportModal(event)}
                                 className="text-gray-600 hover:text-gray-900 flex items-center gap-1"
                               >
-                                <ArrowDownTrayIcon className="h-4 w-4" />
-                                Export
+                                <Tooltip text="Export event attendance">
+                                  <>
+                                    <ArrowDownTrayIcon className="h-4 w-4" />
+                                    <span className="ml-1">Export</span>
+                                  </>
+                                </Tooltip>
                               </button>
                               <button
                                 onClick={() => navigate(`/events/${event.id}/attendance`)}
@@ -345,8 +350,12 @@ function EventsPage() {
                                 onClick={() => openExportModal(event)}
                                 className="flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-1"
                               >
-                                <ArrowDownTrayIcon className="h-4 w-4" />
-                                Export
+                                <Tooltip text="Export event attendance">
+                                  <>
+                                    <ArrowDownTrayIcon className="h-4 w-4" />
+                                    <span className="ml-1">Export</span>
+                                  </>
+                                </Tooltip>
                               </button>
                             </div>
                           </div>
