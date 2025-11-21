@@ -50,7 +50,6 @@ function AttendanceBoardPage() {
       } else {
         setRole("");
       }
-      setLoadingRole(false);
     });
     return () => unsubscribe();
   }, []);
