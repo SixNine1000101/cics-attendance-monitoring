@@ -64,6 +64,7 @@ function LoginPage() {
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
               className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-700 focus:outline-none"
+              title={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? (
                 <EyeSlashIcon className="h-5 w-5" />
@@ -77,6 +78,7 @@ function LoginPage() {
           <button
             type="submit"
             className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition-colors font-semibold"
+            title="Login"
           >
             Login
           </button>

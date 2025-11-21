@@ -3,17 +3,42 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
+    // 🚨 TEMPORARY open rule — REMOVE once you confirm role-based rules work
+    //match /{document=**} {
+    //  allow read, write: if request.time < timestamp.date(2025, 10, 2);
     //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
-    match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2025, 10, 2);
-    }
+
+    // --- Events ---
+    // --- Events ---
+		match /events/{eventId} {
+    	// Anyone can read
+  		allow read: if true;
+      // Only admin can create or modify an event
+  		allow write: if request.auth != null 
+      							&& "role" in request.auth.token
+                    && request.auth.token.role == "admin";
+
+ 			match /attendance/{studentId} {
+    		allow create, update: if request.auth != null 
+        											&& "role" in request.auth.token
+                              && request.auth.token.role in ["admin", "semi-admin"];
+    		allow delete: if request.auth != null 
+        											&& "role" in request.auth.token
+                              && request.auth.token.role == "admin";
+    		allow read: if true;
+  		}
+		}
+
+
+    // --- Students ---
+		match /students/{studentId} {
+    	// Anyone can read
+  		allow read: if true;
+      // Only admin can add, edit, delete students
+  		allow write: if request.auth != null 
+      					&& "role" in request.auth.token 
+                && request.auth.token.role == "admin";
+		}	
+
   }
 }

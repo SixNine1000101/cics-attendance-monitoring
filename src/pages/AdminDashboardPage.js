@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { auth, db } from "../firebase";
-import { collection, getDocs, doc, setDoc, writeBatch } from "firebase/firestore";
-import { PlusIcon, XMarkIcon, CalendarDaysIcon } from "@heroicons/react/24/outline";
+import { collection, getDocs, doc, setDoc, writeBatch, query, where, getCountFromServer } from "firebase/firestore";
+import { PlusIcon, XMarkIcon, CalendarDaysIcon, UserGroupIcon, ServerStackIcon, UsersIcon } from "@heroicons/react/24/outline";
+const { DateTime } = require("luxon");
 
 function AdminDashboardPage() {
   const navigate = useNavigate();
@@ -16,6 +17,8 @@ function AdminDashboardPage() {
   const [attendeeScope, setAttendeeScope] = useState("all");
 
   const [previewDates, setPreviewDates] = useState([]);
+  const [todayEventsCount, setTodayEventsCount] = useState(0);
+  const [totalStudentsCount, setTotalStudentsCount] = useState(0);
 
   // default slots
   const [slots, setSlots] = useState([
@@ -49,6 +52,24 @@ function AdminDashboardPage() {
     }
   }, [startDate, endDate, slots]);
 
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+          // Fetch today's events count
+          const today = DateTime.now().setZone("Asia/Manila").toISODate();
+          const eventsRef = collection(db, "events");
+          const q = query(eventsRef, where("date", "==", today));
+          const todayEventsSnapshot = await getCountFromServer(q);
+          setTodayEventsCount(todayEventsSnapshot.data().count);
+    
+          // Fetch total students count
+          const studentsRef = collection(db, "students");
+          const studentsSnapshot = await getCountFromServer(studentsRef);
+          setTotalStudentsCount(studentsSnapshot.data().count);
+    };
+
+    fetchDashboardData();
+  }, []);
+
   // auth guard
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -56,11 +77,6 @@ function AdminDashboardPage() {
     });
     return () => unsubscribe();
   }, [navigate]);
-
-  const handleLogout = async () => {
-    await auth.signOut();
-    navigate("/login");
-  };
 
   // helper: generate date range
   function getDateRange(start, end) {
@@ -168,185 +184,218 @@ function AdminDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Welcome, Admin!</h1>
-        <p className="text-gray-600">Choose an action:</p>
+    <div className="min-h-screen bg-gray-100">
+      {/* Header */}
+      <div className="px-4 py-2">
+        <h1 className="text-4xl font-bold text-gray-800">Welcome, Admin!</h1>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-white shadow-md rounded-xl p-6 flex flex-col items-start hover:shadow-lg transition"
-        >
-          <div className="text-gray-500 text-3xl mb-2">➕</div>
-          <h3 className="text-lg font-semibold text-gray-700">Create Event</h3>
-          <p className="text-sm text-gray-500">Make a new event</p>
-        </button>
+      <div className="p-4 md:p-8">
+        {/* Status Section */}
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">Status Overview</h2>
+          <div className="md:grid md:grid-cols-3 md:gap-6 flex overflow-x-auto gap-4 py-2">
+            {/* System Status Card */}
+            <div className="flex-shrink-0 w-60 md:w-auto bg-white shadow-md rounded-xl p-6 flex items-center gap-4">
+              <div className="p-3 bg-green-100 rounded-full">
+                <ServerStackIcon className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">System Status</h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                  </span>
+                  <span className="text-lg font-bold text-gray-800">Online</span>
+                </div>
+              </div>
+            </div>
 
-        <button
-          onClick={() => navigate("/admin-dashboard/students")}
-          className="bg-white shadow-md rounded-xl p-6 flex flex-col items-start hover:shadow-lg transition"
-        >
-          <div className="text-gray-500 text-3xl mb-2">🎓</div>
-          <h3 className="text-lg font-semibold text-gray-700">Manage Students</h3>
-          <p className="text-sm text-gray-500">Add, edit or remove students</p>
-        </button>
+            {/* Today's Events Card */}
+            <div className="flex-shrink-0 w-60 md:w-auto bg-white shadow-md rounded-xl p-6 flex items-center gap-4">
+              <div className="p-3 bg-blue-100 rounded-full">
+                <CalendarDaysIcon className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Today's Events</h3>
+                <p className="text-2xl font-bold text-gray-800 mt-1">{todayEventsCount}</p>
+              </div>
+            </div>
 
-        <button
-          onClick={handleLogout}
-          className="bg-white shadow-md rounded-xl p-6 flex flex-col items-start hover:shadow-lg transition"
-        >
-          <div className="text-gray-500 text-3xl mb-2">🚪</div>
-          <h3 className="text-lg font-semibold text-gray-700">Logout</h3>
-          <p className="text-sm text-gray-500">Sign out from the dashboard</p>
-        </button>
+            {/* Total Students Card */}
+            <div className="flex-shrink-0 w-60 md:w-auto bg-white shadow-md rounded-xl p-6 flex items-center gap-4">
+              <div className="p-3 bg-purple-100 rounded-full">
+                <UsersIcon className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Total Students</h3>
+                <p className="text-2xl font-bold text-gray-800 mt-1">{totalStudentsCount}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Section */}
+        <div>
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Create Event Card */}
+            <button
+              onClick={() => setShowModal(true)}
+              className="group bg-white border border-gray-200 p-8 rounded-2xl hover:shadow-lg hover:border-blue-500 transition-all duration-200 text-left flex flex-col items-start"
+              title="Create Event"
+            >
+              <div className="p-4 bg-blue-50 text-blue-600 rounded-xl mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <PlusIcon className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800">Create Event</h3>
+              <p className="text-gray-500 mt-2 text-sm">Schedule a new attendance session, set time slots, and scan rules.</p>
+            </button>
+
+            {/* Manage Students Card */}
+            <button
+              onClick={() => navigate("/admin-dashboard/students")}
+              className="group bg-white border border-gray-200 p-8 rounded-2xl hover:shadow-lg hover:border-purple-500 transition-all duration-200 text-left flex flex-col items-start"
+              title="Manage Students"
+            >
+              <div className="p-4 bg-purple-50 text-purple-600 rounded-xl mb-4 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                <UserGroupIcon className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800">Manage Students</h3>
+              <p className="text-gray-500 mt-2 text-sm">View masterlist, edit student details, or update enrollment status.</p>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 max-h-screen">
-            <h3 className="text-xl font-semibold mb-4 text-gray-700">Create Event</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
 
-            <input
-              type="text"
-              placeholder="Event Name"
-              value={eventName}
-              onChange={(e) => setEventName(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-
-            {/* Date Inputs */}
-            <div className="flex gap-1 mb-4">
-              <div className="flex items-center text-gray-600">From:</div>
-              <input
-                type="date"
-                value={Date.now() || startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
-              <div className="flex items-center text-gray-600">To:</div>
-              <input
-                type="date"
-                value={ Date.now() || endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-gray-800">Create New Event</h3>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+                <XMarkIcon className="w-6 h-6" />
+              </button>
             </div>
 
-            {/* Time Slots */}
-            <div className="mb-4">
-              <button
-                type="button"
-                onClick={() => setSlotsOpen(!slotsOpen)}
-                className="flex justify-between w-full bg-gray-100 px-3 py-2 rounded"
-              >
-                <span className="font-semibold text-gray-700">Time Slots</span>
-                <span>{slotsOpen ? "▲" : "▼"}</span>
-              </button>
+            {/* Scrollable Content */}
+            <div className="p-6 overflow-y-auto">
 
-              {slotsOpen && (
-                <div className="mt-3 space-y-3  overflow-y-auto">
+              {/* Event Name */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Event Title</label>
+                <input
+                  type="text"
+                  placeholder="e.g. College Days - Day 1"
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                />
+              </div>
+
+              {/* Date Range Box */}
+              <div className="bg-gray-50 p-4 rounded-xl mb-6 border border-gray-100">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Duration</label>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <span className="text-xs text-gray-500 block mb-1">From</span>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-xs text-gray-500 block mb-1">To</span>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Time Slots (Chips Layout) */}
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-3">
+                  <label className="block text-sm font-medium text-gray-700">Time Slots</label>
+                  <button onClick={addSlot} className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+                    + Add Slot
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
                   {slots.map((slot) => (
-                    <div key={slot.id} className="flex gap-2 items-center">
+                    <div key={slot.id} className="flex items-center bg-blue-50 border border-blue-100 rounded-lg p-2 gap-2 shadow-sm">
                       <input
                         type="text"
-                        placeholder="Label"
                         value={slot.label}
                         onChange={(e) => updateSlot(slot.id, "label", e.target.value)}
-                        className="flex-1 border rounded px-2 py-1 w-16"
+                        className="bg-transparent w-12 text-sm font-bold text-blue-800 focus:outline-none text-center"
                       />
-                      <input
-                        type="time"
-                        value={slot.start}
-                        onChange={(e) => updateSlot(slot.id, "start", e.target.value)}
-                        className="border rounded px-2 py-1"
-                      />
-                      <input
-                        type="time"
-                        value={slot.end}
-                        onChange={(e) => updateSlot(slot.id, "end", e.target.value)}
-                        className="border rounded px-2 py-1"
-                      />
-                      <button
-                        onClick={() => removeSlot(slot.id)}
-                        className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
-                      >
-                        <XMarkIcon className="h-5 w-5" />
+                      <div className="h-4 w-px bg-blue-200"></div>
+                      <div className="flex flex-col text-xs text-blue-600">
+                        <input
+                          type="time"
+                          value={slot.start}
+                          onChange={(e) => updateSlot(slot.id, "start", e.target.value)}
+                          className="bg-transparent focus:outline-none w-[60px]"
+                        />
+                      </div>
+                      <button onClick={() => removeSlot(slot.id)} className="text-blue-400 hover:text-red-500 ml-1">
+                        <XMarkIcon className="w-4 h-4" />
                       </button>
                     </div>
                   ))}
-                  <button
-                    type="button"
-                    onClick={addSlot}
-                    className="w-30 bg-green-500 text-white rounded px-3 py-1 hover:bg-green-600 justify-center flex items-center gap-1"
-                  >
-                    <PlusIcon className="h-5 w-5 inline-block" /> Add Slot
-                  </button>
+                </div>
+              </div>
+
+              {/* Attendee Scope */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Who can attend?</label>
+                <select
+                  value={attendeeScope}
+                  onChange={(e) => setAttendeeScope(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  <option value="all">All Students (Check database)</option>
+                  <option value="officers">Officers Only</option>
+                  <option value="empty">Open Event (Record names as they scan)</option>
+                </select>
+              </div>
+
+              {/* Loading / Status */}
+              {status && (
+                <div className="bg-blue-50 text-blue-700 px-4 py-3 rounded-lg flex items-center gap-3 mb-4">
+                  {status.startsWith("Setting") && <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>}
+                  <p className="text-sm font-medium">{status}</p>
                 </div>
               )}
             </div>
 
-            {/* Attendees */}
-            <select
-              value={attendeeScope}
-              onChange={(e) => setAttendeeScope(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              <option value="all">All Students</option>
-              <option value="officers">Officers Only</option>
-              <option value="empty">Empty (manual add later)</option>
-            </select>
+            {/* Footer Actions */}
+            <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex gap-3">
+              <button
+                onClick={() => setShowModal(false)}
+                className="flex-1 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createEvent}
+                className="flex-[2] px-4 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition transform active:scale-95"
+              >
+                Publish Event
+              </button>
+            </div>
 
-            {/* Preview Section */}
-            {previewDates.length > 0 && (
-              <div className="mb-4 border rounded bg-gray-50 p-3 max-h-40 overflow-y-auto">
-                <p className="font-semibold text-gray-700 mb-2">
-                  Preview ({previewDates.length} event{previewDates.length > 1 ? "s" : ""}):
-                </p>
-                <ul className="text-sm text-gray-600 space-y-1">
-                  {previewDates.map((d, idx) => (
-                    <li key={d}>
-                      <CalendarDaysIcon className="w-5 h-5 inline-block mr-1" />
-                      {eventName ? `${eventName} - Day ${idx + 1}` : "Event"} — {d} —{" "}
-                      {slots.length} slot{slots.length > 1 ? "s" : ""}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* change this so it wont occupy space when status is empty */}
-            {/* <div className="flex items-center gap-2">
-              {status.startsWith("Setting up") && (
-                <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-              )}
-              {status && <span className="text-sm text-gray-600">{status}</span>}
-            </div> */}
-            {status && (
-              <div className="mt-2 min-h-[1.5rem] flex items-center gap-2">
-                {status.startsWith("Setting up") && (
-                  <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                )}
-                <span className="text-sm text-gray-600">{status}</span>
-              </div>
-            )}
-            
-
-            <button
-              onClick={createEvent}
-              className="w-full bg-blue-600 text-white rounded px-4 py-2 font-medium hover:bg-blue-700 transition"
-            >
-              Create Event(s)
-            </button>
-
-            <button
-              onClick={() => setShowModal(false)}
-              className="mt-4 w-full bg-gray-200 text-gray-700 rounded px-4 py-2 hover:bg-gray-300 transition"
-            >
-              Cancel
-            </button>
           </div>
         </div>
       )}

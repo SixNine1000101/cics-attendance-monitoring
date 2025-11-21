@@ -9,6 +9,8 @@ import AttendanceBoardPage from "./pages/AttendanceBoardPage";
 import ScannerPage from "./pages/ScannerPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 import StudentsPage from "./pages/StudentsPage";
+import Navbar from "./components/Navbar";
+import "./css/AdminDashboardPage.css";
 
 
 function App() {
@@ -30,101 +32,56 @@ function App() {
 
   return (
     <Router>
-      {/* Navbar */}
-      <nav className="bg-gray-800 text-white px-6 py-3 shadow-md">
-        <div className="flex justify-between items-center">
-          {/* Left side: navigation */}
-          <div className="flex items-center gap-4">
-            {!user && (
-              <Link
-                to="/login"
-                className="hover:bg-gray-700 px-3 py-2 rounded transition"
-              >
-                Login
-              </Link>
-            )}
-            {role === "admin" && (
-              <Link
-                to="/admin-dashboard"
-                className="hover:bg-gray-700 px-3 py-2 rounded transition"
-              >
-                Admin
-              </Link>
-            )}
-            {/* {(role === "semi-admin" || role === "admin") && (
-              <Link
-                to="/scanner"
-                className="hover:bg-gray-700 px-3 py-2 rounded transition"
-              >
-                Scanner
-              </Link>
-            )} */}
-            <Link
-              to="/events"
-              className="hover:bg-gray-700 px-3 py-2 rounded transition"
-            >
-              Events
-            </Link>
-          </div>
-
-          {/* Right side: logout */}
-          {user && (
-            <button
-            // to make signOut work properly with navigate 
-              onClick={async () => {
-                await signOut(auth);
-                window.location.href = "/login"; // Redirect to login after logout
-              }}
-              className="bg-red-600 hover:bg-red-700 px-3 py-2 rounded transition"
-            >
-              Logout
-            </button>
-          )}
-        </div>
-      </nav>
+      <Navbar user={user} role={role} />
 
       {/* Routes */}
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route
-          path="/admin-dashboard"
-          element={!user ? (
-            <LoginPage />
-          ) : role === "admin" ? (
-            <AdminDashboardPage />
-          ) : (
-            <UnauthorizedPage />
-          )}
-        />
-        <Route path="/admin-dashboard/students"
-          element={!user ? (
-            <LoginPage />
-          ) : role === "admin" ? (
-            <StudentsPage />
-          ) : (
-            <UnauthorizedPage />
-          )
-          }
-        />
-        <Route path="/events" element={<EventsPage />} />
-        <Route
-          path="/events/:eventId/scanner"
-          element={
-            role === "admin" || role === "semi-admin" ? (
-              <ScannerPage />
-            ) : (
-              <LoginPage />
-            )
-          }
-        />
-        {/* <Route path="/attendance" element={<AttendanceBoardPage />} /> */}
-        <Route
-          path="/events/:eventId/attendance"
-          element={<AttendanceBoardPage />}
-        />
-        <Route path="/unauthorized" element={<UnauthorizedPage />} />
-        <Route path="/" element={<EventsPage />} />
-      </Routes>
+      <div className="pb-16 md:pb-0">
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/admin-dashboard"
+            element={
+              !user ? (
+                <LoginPage />
+              ) : role === "admin" ? (
+                <AdminDashboardPage />
+              ) : (
+                <UnauthorizedPage />
+              )
+            }
+          />
+          <Route
+            path="/admin-dashboard/students"
+            element={
+              !user ? (
+                <LoginPage />
+              ) : role === "admin" ? (
+                <StudentsPage />
+              ) : (
+                <UnauthorizedPage />
+              )
+            }
+          />
+          <Route path="/events" element={<EventsPage />} />
+          <Route
+            path="/events/:eventId/scanner"
+            element={
+              role === "admin" || role === "semi-admin" ? (
+                <ScannerPage />
+              ) : (
+                <LoginPage />
+              )
+            }
+          />
+          {/* <Route path="/attendance" element={<AttendanceBoardPage />} /> */}
+          <Route
+            path="/events/:eventId/attendance"
+            element={<AttendanceBoardPage />}
+          />
+          <Route path="/unauthorized" element={<UnauthorizedPage />} />
+          <Route path="/" element={<EventsPage />} />
+        </Routes>
+      </div>
     </Router>
   );
 }
